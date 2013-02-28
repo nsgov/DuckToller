@@ -1,6 +1,0 @@
-<?xml version="1.0" charset="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom">
-	<id>$self</id>
-	<title>$title</title>
-	<link rel="self" href="$self"/>
-</feed>
