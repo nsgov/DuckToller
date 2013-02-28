@@ -1,4 +1,5 @@
 .DS_Store
+*.komodoproject
 lib/twitteroauth
 twitter/avatar
 twitter/feed
