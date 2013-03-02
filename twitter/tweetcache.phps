@@ -1,21 +1,32 @@
 <?php
+/**
+ * @package DuckToller
+ * @author David Nordlund
+ * @copyright Province of Nova Scotia, 2013
+ */
 
-require_once(DUCKTOLLER_PATH.'base/cachable.phps');
-
+/**
+ * TweetCache caches tweets from a twitter feed.
+ *
+ * When a cache needs updating, TweetCache requests from twitter any tweets
+ * since the last time it checked.  The JSON repsonse is converted to an Atom
+ * entry with the tweet data also marked up as XHTML in the Atom content tag.
+ * The cache is saved as an Atom feed.
+ */
 class TweetCache extends Cachable {
 	protected $atom, $entries, $config, $feedmode, $params;
-	protected static $modes =
-		array( //           mode       API endpoint               primary param  valid param
-			  '@' => array('user',    '/statuses/user_timeline', 'screen_name', '\w{1,15}'),
-			  '#' => array('hashtag', '/search/tweets',          'q',           '[A-Za-z]\w{0,30}'),
-			  '*' => array('fav',     '/favorites/list',         'screen_name', '\w{1,15}'),
-			  ':' => array('list',    '/lists/list',             'slug',        '\w{1,31}'),
-			  '?' => array('search',  '/search/tweets',          'q',           '[[:print:]]{1,999}')
-			  );
-	public static $XMLNS =
-		array('atom'    => 'http://www.w3.org/2005/Atom',
-			  'twitter' => 'http://api.twitter.com',
-			  'xhtml'   => 'http://www.w3.org/1999/xhtml');
+	protected static $modes = array(
+		 //           mode       API endpoint               primary param  valid param
+		'@' => array('user',    '/statuses/user_timeline', 'screen_name', '\w{1,15}'),
+		'#' => array('hashtag', '/search/tweets',          'q',           '[A-Za-z]\w{0,30}'),
+		'*' => array('fav',     '/favorites/list',         'screen_name', '\w{1,15}'),
+		'?' => array('search',  '/search/tweets',          'q',           '[[:print:]]{1,999}')
+	);
+	public static $XMLNS = array(
+		'atom'    => 'http://www.w3.org/2005/Atom',
+		'twitter' => 'http://api.twitter.com',
+		'xhtml'   => 'http://www.w3.org/1999/xhtml'
+	);
 
 	function __construct($toller, $keys, $feedstring) {
 		$this->config = $toller->config['tweetcache'];
