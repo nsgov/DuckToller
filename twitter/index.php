@@ -3,23 +3,17 @@
 require_once('../base/ducktoller.phps');
 require_once('./tweetcache.phps');
 
-try {
-	$ducktoller = new DuckToller("../ducktoller.ini");
+$ducktoller = new DuckToller("../ducktoller.ini");
+
+if (isset($_GET['feed'])) {
 	$keysfile = 'keys.ini.php';
+	$keys = parse_ini_file($keysfile);
+	foreach($keys as $name => $key)
+		if (!$key)
+			throw new Exception("Don't forget your keys! $name needs to be set in $keysfile.");
 
-
-	if (isset($_GET['feed'])) {
-		$keys = parse_ini_file($keysfile);
-		foreach($keys as $name => $key)
-			if (!$key)
-				throw new Exception("Don't forget your keys! $name needs to be set in $keysfile.");
-
-		$tweetcache = new TweetCache($ducktoller, $keys, $_GET['feed']);
-		$ducktoller->retrieve($tweetcache);
-	}
-} catch(Exception $ex) {
-	header("Status: 500 Internal Server Error");
-	echo '<p>' . htmlspecialchars($ex->getMessage()) . "</p>\n";
+	$tweetcache = new TweetCache($ducktoller, $keys, $_GET['feed']);
+	$ducktoller->toll($tweetcache)->retrieve()->deliver();
 }
 ?>
 <pre>
