@@ -147,7 +147,7 @@ class TweetCache extends Cachable {
 		$this->appendAtomTag($entry, 'link', array('rel'=>'image', 'type'=>'image/jpeg', 'href'=>$imgsrc));
 		$this->appendAtomTag($entry, 'summary', null, $tweet->text);
 		$content = $this->appendAtomTag($entry, 'content', array('type'=>'xhtml'));
-		$div = $this->appendHtmlTag($content, 'div', array('class'=>'tweet'));
+		$div = $this->appendHtmlTag($content, 'div');
 		$this->appendHtmlTag($div, 'p', array('class'=>'tweet-text'), $tweet->text);
 		$related = array('rel'=>'related', 'type'=>'text/html');
 		foreach ($tweet->entities->hashtags as $hashtag) {
