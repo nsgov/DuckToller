@@ -27,8 +27,12 @@ abstract class Cachable {
 		return $this->stat('mtime');
 	}
 
+	function mimetype() {
+		return "text/plain";
+	}
+
 	function age() {
-		return time() - $this->lastModified(); 
+		return time() - $this->lastModified();
 	}
 
 	function expired() {

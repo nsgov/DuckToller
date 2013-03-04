@@ -48,6 +48,10 @@ class TweetCache extends Cachable {
 		$this->atom = new DOMDocument();
 	}
 
+	function mimetype() {
+		return "application/atom+xml";
+	}
+
 	protected function fetch($cache) {
 		require_once(DUCKTOLLER_PATH.'lib/twitteroauth/twitteroauth.php');
 		$this->loadFromCache($cache);
