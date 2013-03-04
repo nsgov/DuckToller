@@ -41,6 +41,7 @@ class TweetCache extends Cachable {
 		$basename = preg_match('/^\w{1,31}$/', $feedparam) ? strtolower($feedparam) : md5($feedparam);
 		$cachefile = 'feed/' . $this->feedmode[0] . "-$basename.atom";
 		parent::__construct($toller, $cachefile);
+		$this->max_age = 3600;
 		$this->loglabel = "tweetcache[$feedstring]";
 		if ($feedchar=='#')
 			$feedparam = '#'.$feedparam;
@@ -137,8 +138,8 @@ class TweetCache extends Cachable {
 		$this->appendAtomTag($feed, 'updated', null, date(DATE_W3C));
 		foreach ($tweets as $t)
 			$this->generateEntry($t);
-		foreach ($this->entries as $e)
-			$feed->appendChild($e);
+		//foreach ($this->entries as $e)  # php is terrible at handling xml namespaces
+		//	$feed->appendChild($e);
 		return $this->atom->saveXML();
 	}
 
@@ -146,24 +147,38 @@ class TweetCache extends Cachable {
 		$entry = $this->appendAtomTag($this->atom->documentElement, 'entry');
 		$retweeted_by = null;
 		$title = $tweet->user->screen_name . ': ' . $tweet->text;
+		$updated = $published = new DateTime($tweet->created_at);
 		if (isset($tweet->retweeted_status)) {
 			$retweeted_by = $tweet->user;
 			$tweet = $tweet->retweeted_status;
+			$updated = new DateTime($tweet->created_at);
 		}
 		$author_url = 'https://twitter.com/'.$tweet->user->screen_name;
-		$link = $author_url.'/status/'.$tweet->id_str;
-		$this->appendAtomTag($entry, 'id', null, $link);
-		$this->appendAtomTag($entry, 'link', array('rel'=>'alternate', 'type'=>'text/html', 'href'=>$link));
+		$tweet_url = $author_url.'/status/'.$tweet->id_str;
+		$this->appendAtomTag($entry, 'id', null, $tweet_url);
+		$this->appendAtomTag($entry, 'link', array('rel'=>'alternate', 'type'=>'text/html', 'href'=>$tweet_url));
 		$this->appendAtomTag($entry, 'title', null, $title);
 		$author = $this->appendAtomTag($entry, 'author');
 		$this->appendAtomTag($author, 'name', null, $tweet->user->name);
 		$this->appendAtomTag($author, 'uri', null, $author_url);
 		$imgsrc = $tweet->user->profile_image_url;
 		$this->appendAtomTag($entry, 'link', array('rel'=>'image', 'type'=>'image/jpeg', 'href'=>$imgsrc));
+		$this->appendAtomTag($entry, 'published', null, $published->format(DateTime::ATOM));
+		$this->appendAtomTag($entry, 'updated', null, $updated->format(DateTime::ATOM));
 		$this->appendAtomTag($entry, 'summary', null, $tweet->text);
-		$content = $this->appendAtomTag($entry, 'content', array('type'=>'xhtml'));
-		$div = $this->appendHtmlTag($content, 'div');
-		$this->appendHtmlTag($div, 'p', array('class'=>'tweet-text'), $tweet->text);
+		$html =
+			'<div class="tweet">'.
+			'<a href="'.htmlspecialchars($author_url).'" class="tweeter">'.
+			'<img src="'.htmlspecialchars($imgsrc).'" alt="" class="twitter-avatar" />'.
+			'<span class="tweeter-name">'.htmlspecialchars($tweet->user->name).'</span> '.
+			'<span class="tweeter-screenname">@'.htmlspecialchars($tweet->user->screen_name).'</span>'.
+			'</a> '.
+			'<a href="'.htmlspecialchars($tweet_url).'" class="tweet-time" title="'.$tweet->created_at.'">'.
+			'<time datetime="'.$updated->format(DateTime::W3C).'">'.$updated->format('M d').'</time>'.
+			'</a> '.
+			'<p class="tweet-text">'.$tweet->text.'</p>'.
+			'</div>';
+		$content = $this->appendAtomTag($entry, 'content', array('type'=>'html'), $html);
 		$related = array('rel'=>'related', 'type'=>'text/html');
 		foreach ($tweet->entities->hashtags as $hashtag) {
 			$related['href'] = 'https://twitter.com/search/%23'.$hashtag->text;
