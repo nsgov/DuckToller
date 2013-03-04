@@ -84,8 +84,9 @@ class DuckToller {
 		}
 		if ($allow)
 			header('Access-Control-Allow-Origin: ' . $origin);
-		else
-			header('Status: 403 Forbidden', true, 403);
-			throw new Exception('DuckToller::checkOrigin denied access.');
+		#else {
+		#	header('Status: 403 Forbidden', true, 403);
+		#	throw new Exception('DuckToller::checkOrigin denied access.');
+		#}
 	}
 }
