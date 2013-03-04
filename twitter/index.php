@@ -15,7 +15,3 @@ if (isset($_GET['feed'])) {
 	$tweetcache = new TweetCache($ducktoller, $keys, $_GET['feed']);
 	$ducktoller->toll($tweetcache)->retrieve()->deliver();
 }
-?>
-<pre>
-<?php echo htmlspecialchars(implode("\n", $ducktoller->log)) . "\n"; ?>
-</pre>

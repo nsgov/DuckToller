@@ -65,7 +65,7 @@ class TweetCache extends Cachable {
 		$toa->connecttimeout = $this->config['timeout'];
 		$tweets = $toa->get($this->feedmode[1], $this->params);
 		$hc = $toa->http_code;
-		echo "<pre>"; print_r($toa->http_info); echo "\n"; print_r($tweets); echo "\n<pre>\n";
+		#echo "<pre>"; print_r($toa->http_info); echo "\n"; print_r($tweets); echo "\n<pre>\n";
 		if ($hc != 200)
 			throw new Exception('Fail Whale! HTTP '.($hc||'timeout').' (after '.(time()-$start).'s)', $hc);
 		if (isset($tweets['statuses']))
