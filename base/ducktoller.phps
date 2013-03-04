@@ -59,11 +59,33 @@ class DuckToller {
 	}
 
 	/**
-	 * @todo Check allow-origin config option against Origin or Referer header
+	 * Check allow-origin config option against Origin or Referer header.
+	 * @throws Exception when allow-origin setting doesn't match origin/referrer.
 	 */
 	function checkOrigin() {
-		$allow = $this->config["allow-origin"];
-		if (isset($_SERVER['HTTP_ORIGIN']))
-			$origin = parse_url($_SERVER['HTTP_ORIGIN']);
+		$allow = false;
+		$allowable = strtolower(trim($this->config['allow-origin']));
+		if ($allowable == '*')
+			$allow = $origin = '*';
+		else {
+			if (isset($_SERVER['HTTP_ORIGIN']))
+				$origin = parse_url($_SERVER['HTTP_ORIGIN']);
+			else
+				$origin = parse_url($_SERVER['HTTP_REFERER']);
+			if (isset($origin['host'])) {
+				$origin = $origin['host'];
+				foreach (explode(' ', $allowable) as $a) {
+					if (fnmatch($a, $origin)) {
+						$allow = $origin;
+						break;
+					}
+				}
+			}
+		}
+		if ($allow)
+			header('Access-Control-Allow-Origin: ' . $origin);
+		else
+			header('Status: 403 Forbidden', true, 403);
+			throw new Exception('DuckToller::checkOrigin denied access.');
 	}
 }
