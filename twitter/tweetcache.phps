@@ -145,39 +145,51 @@ class TweetCache extends Cachable {
 
 	protected function generateEntry($tweet) {
 		$entry = $this->appendAtomTag($this->atom->documentElement, 'entry');
-		$retweeted_by = null;
+		$retweeted_by = '';
 		$title = $tweet->user->screen_name . ': ' . $tweet->text;
 		$updated = $published = new DateTime($tweet->created_at);
 		if (isset($tweet->retweeted_status)) {
-			$retweeted_by = $tweet->user;
+			$retweeted_by = '<p class="retweetedby"><i class="tweet-icon"> </i> Retweeted by '.
+			                '<a href="https://twitter.com/'.
+							htmlspecialchars($tweet->user->screen_name).'">'.
+			                $tweet->user->name.'</a></p>';
 			$tweet = $tweet->retweeted_status;
 			$published = new DateTime($tweet->created_at);
 		}
-		$author_url = 'https://twitter.com/'.$tweet->user->screen_name;
-		$tweet_url = $author_url.'/status/'.$tweet->id_str;
+		$id = $tweet->id_str;
+		$username = $tweet->user->screen_name;
+		$author_url = 'https://twitter.com/'.$username;
+		$tweet_url = "$author_url/status/$id";
 		$this->appendAtomTag($entry, 'id', null, $tweet_url);
 		$this->appendAtomTag($entry, 'link', array('rel'=>'alternate', 'type'=>'text/html', 'href'=>$tweet_url));
 		$this->appendAtomTag($entry, 'title', null, $title);
 		$author = $this->appendAtomTag($entry, 'author');
 		$this->appendAtomTag($author, 'name', null, $tweet->user->name);
 		$this->appendAtomTag($author, 'uri', null, $author_url);
-		$this->appendTwitterTag($author, 'screen_name', $tweet->user->screen_name);
+		$this->appendTwitterTag($author, 'screen_name', $username);
 		$imgsrc = $tweet->user->profile_image_url;
-		$this->appendTwitterTag($author, 'profile_image_url', null, $imgsrc);
+		$this->appendTwitterTag($author, 'profile_image_url', $imgsrc);
 		$this->appendAtomTag($entry, 'published', null, $published->format(DateTime::ATOM));
 		$this->appendAtomTag($entry, 'updated', null, $updated->format(DateTime::ATOM));
-		$this->appendAtomTag($entry, 'summary', null, $tweet->text);
+		$this->appendAtomTag($entry, 'summary', array('type'=>'xhtml'), $tweet->text);
+		$intent = 'https://twitter.com/intent/';
 		$html =
 			'<div class="tweet">'.
-			'<a href="'.htmlspecialchars($author_url).'" class="tweeter">'.
-			'<!--img src="'.htmlspecialchars($imgsrc).'" alt="" class="twitter-avatar" /-->'.
+			'<a href="'.$author_url.'" class="tweeter">'.
+			'<img src="'.$imgsrc.'" alt="" class="tweeter-avatar" />'.
 			'<span class="tweeter-name">'.htmlspecialchars($tweet->user->name).'</span> '.
 			'<span class="tweeter-screenname">@'.htmlspecialchars($tweet->user->screen_name).'</span>'.
 			'</a> '.
-			'<a href="'.htmlspecialchars($tweet_url).'" class="tweet-time" title="'.$tweet->created_at.'">'.
+			'<a href="'.$tweet_url.'" class="tweet-time" title="'.$tweet->created_at.'">'.
 			'<time datetime="'.$updated->format(DateTime::W3C).'">'.$updated->format('M d').'</time>'.
 			'</a> '.
-			'<p class="tweet-text">'.$tweet->text.'</p>'.
+			'<blockquote class="tweet-text" cite="'.$tweet_url.'">'.$tweet->text.'</blockquote> '.
+			$retweeted_by.
+			'<div class="tweet-actions">'.
+			'<a href="'.$intent.'tweet?in_reply_to='.$id.'" class="tweet-action tweet-reply"><i class="tweet-icon"> </i> Reply</a>'.
+			'<a href="'.$intent.'retweet?tweet_id=' .$id.'" class="tweet-action tweet-retweet"><i class="tweet-icon"> </i> Retweet</a>'.
+			'<a href="'.$intent.'favorite?tweet_id='.$id.'" class="tweet-action tweet-fav"><i class="tweet-icon"> </i> Favourite</a> '.
+			'</div>'.
 			'</div>';
 		$content = $this->appendAtomTag($entry, 'content', array('type'=>'html'), $html);
 		$related = array('rel'=>'related', 'type'=>'text/html');
