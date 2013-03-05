@@ -60,7 +60,7 @@ class TweetCache extends Cachable {
 		$since_id = $this->getMaxId();
 		if ($since_id)
 			$this->params['since_id'] = $since_id;
-		$this->log('Fetching tweets from twitter');
+		$this->log('Fetching tweets from twitter' . ($since_id?" (since $since_id)":''));
 		$start = time();
 		$toa = new TwitterOAuth($this->keys['CONSUMER_KEY'],
 		                        $this->keys['CONSUMER_SECRET'],
