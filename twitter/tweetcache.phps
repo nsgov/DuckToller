@@ -138,9 +138,9 @@ class TweetCache extends Cachable {
 		$this->appendAtomTag($feed, 'updated', null, date(DATE_W3C));
 		foreach ($tweets as $t)
 			$this->generateEntry($t);
-		//foreach ($this->entries as $e)  # php is terrible at handling xml namespaces
-		//	$feed->appendChild($e);
-		return $this->atom->saveXML();
+		foreach ($this->entries as $e)
+			$feed->appendChild($e);
+		return $this->atom->saveXML($feed);
 	}
 
 	protected function generateEntry($tweet) {
