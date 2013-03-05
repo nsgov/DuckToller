@@ -170,7 +170,7 @@ class TweetCache extends Cachable {
 		$html =
 			'<div class="tweet">'.
 			'<a href="'.htmlspecialchars($author_url).'" class="tweeter">'.
-			'<img src="'.htmlspecialchars($imgsrc).'" alt="" class="twitter-avatar" />'.
+			'<!--img src="'.htmlspecialchars($imgsrc).'" alt="" class="twitter-avatar" /-->'.
 			'<span class="tweeter-name">'.htmlspecialchars($tweet->user->name).'</span> '.
 			'<span class="tweeter-screenname">@'.htmlspecialchars($tweet->user->screen_name).'</span>'.
 			'</a> '.
