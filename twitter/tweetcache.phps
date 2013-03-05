@@ -151,7 +151,7 @@ class TweetCache extends Cachable {
 		if (isset($tweet->retweeted_status)) {
 			$retweeted_by = $tweet->user;
 			$tweet = $tweet->retweeted_status;
-			$updated = new DateTime($tweet->created_at);
+			$published = new DateTime($tweet->created_at);
 		}
 		$author_url = 'https://twitter.com/'.$tweet->user->screen_name;
 		$tweet_url = $author_url.'/status/'.$tweet->id_str;
