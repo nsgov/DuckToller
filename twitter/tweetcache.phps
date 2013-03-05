@@ -161,6 +161,7 @@ class TweetCache extends Cachable {
 		$author = $this->appendAtomTag($entry, 'author');
 		$this->appendAtomTag($author, 'name', null, $tweet->user->name);
 		$this->appendAtomTag($author, 'uri', null, $author_url);
+		$this->appendTwitterTag($author, 'screen_name', $tweet->user->screen_name);
 		$imgsrc = $tweet->user->profile_image_url;
 		$this->appendTwitterTag($author, 'profile_image_url', null, $imgsrc);
 		$this->appendAtomTag($entry, 'published', null, $published->format(DateTime::ATOM));
