@@ -55,23 +55,18 @@ TweetCache.Feeder.prototype = {
 	},
 	loaded: function(atom) {
 		var xmlns = 'http://www.w3.org/2005/Atom';
-		var entrylist = atom.getElementsByTagNameNS(xmlns, 'entry'), entries = [];
+		var entrylist = atom.getElementsByTagNameNS(xmlns, 'entry'), html = [];
 		var total = entrylist.length;
 		if (this.max)
 			total = Math.min(total, this.max);
-		for (var i = 0; i < total; entries[i] = entrylist[i]);
+		for (var i = 0; i < total; i++) {
+			var content = entrylist[i].getElementsByTagNameNS(xmlns, 'content');
+			html[i] = content.length ? content[0].lastChild.nodeValue : '-';
+		}
 		entrylist = null;
 		for (var i=this.tags.length, t; i && (t=this.tags[--i]); ) {
-			this.tags[i].tag.innerHTML = html;
+			t.tag.innerHTML = html.join('');
 		}
-		var max = entries.length;
-		var html = '';
-		for (var i=0; i < max; i++) {
-			var content = entries[i].getElementsByTagNameNS(xmlns, 'content');
-			if (content.length==1)
-			html += content[0].lastChild.nodeValue;
-		}
-		for (var i=this.tags.length; i--; this.tags[i].innerHTML = html);
 		this.done();
 	},
 	failed: function(errmsg) {
@@ -79,7 +74,7 @@ TweetCache.Feeder.prototype = {
 		this.done();
 	},
 	done: function() {
-		for (var i=this.tags.length; i--; this.tags[i].setAttribute("aria-busy", "false"));
+		for (var i=this.tags.length; i--; this.tags[i].tag.setAttribute("aria-busy", "false"));
 		this.url = this.tags = this.cors = null;
 		TweetCache.fed(this);
 	}
