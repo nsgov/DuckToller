@@ -172,6 +172,31 @@ class TweetCache extends Cachable {
 		$this->appendAtomTag($entry, 'published', null, $published->format(DateTime::ATOM));
 		$this->appendAtomTag($entry, 'updated', null, $updated->format(DateTime::ATOM));
 		$this->appendAtomTag($entry, 'summary', array('type'=>'xhtml'), $tweet->text);
+		$entity = array();
+		$indices = array();
+		foreach ($tweet->entities->hashtags as $hashtag) {
+			$term = '#'.$hashtag->text;
+			$this->appendAtomTag($entry, 'category', array(
+				'term'   => $term,
+				'scheme' => 'https://twitter.com/'
+			));
+			$indices[] = $i = $hashtag->indices[0];
+			$indices[] = $hashtag->indices[1];
+			$entity["i$i"] = $this->makeLink('https://twitter.com/search/%23'.$hashtag->text, $term);
+		}
+		foreach ($tweet->entities->urls as $url) {
+			$indices[] = $i = $url->indices[0];
+			$indices[] = $url->indices[1];
+			$d_url = isset($url->display_url)  ? $url->display_url  : $url->url;
+			$x_url = isset($url->expanded_url) ? $url->expanded_url : null;
+			$entity["i$i"] = $this->makeLink($url->url, $d_url, $x_url);
+		}
+		foreach ($tweet->entities->user_mentions as $user) {
+			$indices[] = $i = $user->indices[0];
+			$indices[] = $user->indices[1];
+			$entity["i$i"] = $this->makeLink('https://twitter.com/'.$user->screen_name, $user->screen_name, $user->name);
+		}
+		$text = $this->linkEntities($tweet->text, $indices, $entity);
 		$intent = 'https://twitter.com/intent/';
 		$html =
 			'<div class="tweet">'.
@@ -183,7 +208,7 @@ class TweetCache extends Cachable {
 			'<a href="'.$tweet_url.'" class="tweet-time" title="'.$tweet->created_at.'">'.
 			'<time datetime="'.$updated->format(DateTime::W3C).'">'.$updated->format('M d').'</time>'.
 			'</a> '.
-			'<blockquote class="tweet-text" cite="'.$tweet_url.'">'.$tweet->text.'</blockquote> '.
+			'<blockquote class="tweet-text" cite="'.$tweet_url.'">'.$text.'</blockquote> '.
 			$retweeted_by.
 			'<div class="tweet-actions">'.
 			'<a href="'.$intent.'tweet?in_reply_to='.$id.'" class="tweet-action tweet-reply"><i class="tweet-icon"> </i> Reply</a>'.
@@ -192,24 +217,30 @@ class TweetCache extends Cachable {
 			'</div>'.
 			'</div>';
 		$content = $this->appendAtomTag($entry, 'content', array('type'=>'html'), $html);
-		$related = array('rel'=>'related', 'type'=>'text/html');
-		foreach ($tweet->entities->hashtags as $hashtag) {
-			$related['href'] = 'https://twitter.com/search/%23'.$hashtag->text;
-			$related['title'] = '#'.$hashtag->text;
-			$this->appendAtomTag($entry, 'link', $related);
-		}
-		foreach ($tweet->entities->urls as $url) {
-			$related['href'] = $url->url;
-			$related['title'] = $url->display_url;
-			$this->appendAtomTag($entry, 'link', $related);
-		}
-		foreach ($tweet->entities->user_mentions as $user) {
-			$related['href'] = 'https://twitter.com/'.$user->screen_name;
-			$related['title'] = '@'.$user->screen_name . ' (' . $user->name . ')';
-			$this->appendAtomTag($entry, 'link', $related);
-		}
 		$this->appendTwitterTag($entry, 'source', $tweet->source);
 		return $entry;
+	}
+
+	protected function linkEntities($text, $indices, $entities) {
+		if (!in_array(0, $indices))
+			$indices[] = 0;
+		sort($indices, SORT_NUMERIC);
+		$last = count($indices) - 1;
+		$len = iconv_strlen($text, 'UTF-8');
+		if ($indices[$last] != $len) {
+			$indices[] = $len;
+			$last++;
+		}
+		$html = array();
+		for ($i = 0; $i < $last; $i++) {
+			$idx = $indices[$i];
+			$key = "i$idx";
+			if (isset($entities[$key]))
+				$html[] = $entities[$key];
+			else
+				$html[] = iconv_substr($text, $idx, $indices[$i+1] - $idx, 'UTF-8');
+		}
+		return implode($html);
 	}
 
 	private function xmlTag($doc, $ns, $tagName, $attr=null, $text=null) {
@@ -238,5 +269,11 @@ class TweetCache extends Cachable {
 		$parent->appendChild($tag);
 		$parent->appendChild($parent->ownerDocument->createTextNode("\n"));
 		return $tag;
+	}
+	private function makeLink($href, $text, $title=null, $className=null) {
+		return '<a href="'.htmlspecialchars($href).'"'.
+			($title?' title="'.htmlspecialchars($title).'"':'').
+			($className?' class="'.$className.'"':'').
+			' rel="nofollow">' . htmlspecialchars($text) . '</a>';
 	}
 };
