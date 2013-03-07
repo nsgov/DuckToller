@@ -194,7 +194,7 @@ class TweetCache extends Cachable {
 		foreach ($tweet->entities->user_mentions as $user) {
 			$indices[] = $i = $user->indices[0];
 			$indices[] = $user->indices[1];
-			$entity["i$i"] = $this->makeLink('https://twitter.com/'.$user->screen_name, $user->screen_name, $user->name);
+			$entity["i$i"] = $this->makeLink('https://twitter.com/'.$user->screen_name, '@'.$user->screen_name, $user->name);
 		}
 		$text = $this->linkEntities($tweet->text, $indices, $entity);
 		$intent = 'https://twitter.com/intent/';
