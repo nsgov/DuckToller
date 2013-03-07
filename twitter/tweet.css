@@ -66,6 +66,12 @@ body { background: #79a; }
 	padding: 2px 0;
 }
 
+.retweetedby {
+	color: #777;
+	font-style: italic;
+	margin: -4px 0 0;
+}
+
 .tweet-actions {
 	font-size: 12px;
 }
