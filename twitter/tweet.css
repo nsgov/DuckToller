@@ -62,7 +62,7 @@ body { background: #79a; }
 .tweet .tweet-text {
 	clear: right;
 	display: block;
-	margin: 2px 0;
+	margin: 0;
 	padding: 2px 0;
 }
 
