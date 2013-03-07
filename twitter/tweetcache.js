@@ -6,7 +6,7 @@ var TweetCache = {
 			var tf = tag.getAttribute("data-twitterfeed").split(';');
 			var params = {};
 			for (var j = tf.length; --j;) {
-				var p = tf[j].match("\s*(\w+)\s*=\s(\S+)\s*");
+				var p = tf[j].match(/\s*(\w+)\s*=\s*(\S+)\s*/);
 				if (p) params[p[1]] = p[2];
 			}
 			if ((m = tf[0].match(/^([@#])(\w+)$/))) {
@@ -46,7 +46,7 @@ TweetCache.Feeder.prototype = {
 	load: function() {
 		var it = this, cors = this.cors = new TweetCache.Loader(), qs = '';
 		if (this.max)
-			qs = '?max=' + max;
+			qs = '&max=' + this.max;
 		cors.open("GET", this.url+qs);
 		cors.onerror   = function() { it.failed(cors.statusText||"Loading failed. :("); };
 		cors.ontimeout = function() { it.failed("Connection timeout."); };
