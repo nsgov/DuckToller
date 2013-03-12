@@ -9,17 +9,20 @@
  * An abstract base class for all things that can be cached.
  */
 abstract class Cachable {
-	protected $toller, $_stat, $path, $max_age, $loglabel, $content;
+	protected $toller, $_stat, $max_age, $loglabel, $content;
+	protected $path_r, $path_w;
 
 	function __construct($toller, $cachefile) {
+		$s = DIRECTORY_SEPARATOR;
 		$this->toller = $toller;
-		$this->path = $cachefile;
+		$this->path_r = $cachefile;
+		$this->path_w = dirname($cachefile)."$s.".basename($cachefile);
 		$this->loglabel = basename($cachefile);
 	}
 
 	function stat($field=null) {
 		if (!$this->_stat)
-			!$this->_stat = @stat($this->path);
+			!$this->_stat = @stat($this->path_r);
 		return ($this->_stat && $field) ? $this->_stat[$field] : $this->_stat;
 	}
 
@@ -41,61 +44,51 @@ abstract class Cachable {
 
 	function getContent() {
 		if (!$this->content || $this->expired())
-			$this->lockAndLoad();
+			$this->load();
 		return $this->content;
 	}
 
-	protected function lockAndLoad() {
+	protected function load() {
 		$this->content = '';
-		$cache = fopen($this->path, 'c+b');
-		if (!$cache)
-			throw new Exception("Could not open cache file");
 		$age = $this->age();
-		$this->log("Cache age: $age seconds");
-		if ($this->expired() || !$this->stat('size')) {
-			if (flock($cache, LOCK_EX|LOCK_NB)) {
+		$expired = $this->expired();
+		$this->log("Cache age: $age seconds" . ($expired?' (expired)':''));
+		if ($expired || !$this->stat('size')) {
+			$write = @fopen($this->path_w, 'xb');
+			if ($write) {
 				try {
-					$this->fetch($cache);
-					$this->writeCache($cache);
+					$this->content = $this->fetch($cache);
+					$this->writeCache($write);
+					fflush($write);
+					if (!rename($this->path_w, $this->path_r))
+						$this->log('rename failed in Cachable::load');
 				} catch(Exception $ex) {
 					$this->log($ex->getMessage());
 				}
-				flock($cache, LOCK_UN);
+				fclose($write);
 			} else
-				$this->log("Unable to get exclusive lock");
+				$this->log('write cache already exists, another process must be updating');
 		}
 		if (!$this->content) {
-			$this->log("Loading from cache");
-			flock($cache, LOCK_SH);
-			/*	refresh stat after getting lock,
-				just in case flock was waiting for another LOCK_EX to release,
-				in which case the file was just updated	*/
-			$this->_stat = null;
-			$this->stat();
-			$this->loadFromCache($cache);
-			flock($cache, LOCK_UN);
+			$this->log('Loading from cache');
+			$this->loadFromCache();
 		}
-		fclose($cache);
 	}
 
 	protected function writeCache($cache) {
 		$len = strlen($this->content);
 		if ($len) {
-			$this->log("Writing $len bytes to cache (".substr($this->content, 0, 10).")");
-			fseek($cache, 0);
-			ftruncate($cache, 0);
+			$this->log("Writing $len bytes to cache");
 			$written = fwrite($cache, $this->content, $len);
 			$this->log("Wrote $written bytes");
 		} else
-			$this->log("Received empty content");
+			$this->log('Received empty content');
 	}
 
 	abstract protected function fetch($cache);  // load content fresh from the source into $this->content
 
-	protected function loadFromCache($cache) {
-		$bytes = $this->stat('size');
-		if ($bytes)
-			$this->content = fread($cache, $bytes);
+	protected function loadFromCache() {
+		$this->content = @file_get_contents($this->path_r);
 	}
 
 	protected function log($msg) {

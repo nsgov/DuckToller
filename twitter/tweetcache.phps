@@ -55,7 +55,7 @@ class TweetCache extends Cachable {
 
 	protected function fetch($cache) {
 		require_once(DUCKTOLLER_PATH.'lib/twitteroauth/twitteroauth.php');
-		$this->loadFromCache($cache);
+		$this->loadFromCache();
 		$this->extractEntries();
 		$since_id = $this->getMaxId();
 		if ($since_id)
@@ -79,11 +79,12 @@ class TweetCache extends Cachable {
 		$this->log('Received '.$n.' new tweet'.($n==1?'':'s'));
 		if ($n > 0)
 			$this->content = $this->generateFeed($tweets);
+		return $this->content;
 	}
 
-	protected function loadFromCache($cache) {
+	protected function loadFromCache() {
 		if (!$this->content) {
-			parent::loadFromCache($cache);
+			parent::loadFromCache();
 			if ($this->content)
 				$this->atom->loadXML($this->content);
 			if (!$this->atom->documentElement)
