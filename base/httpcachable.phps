@@ -6,21 +6,116 @@
  */
 
 class HttpCachable extends Cachable {
-	protected $url, $header_path, $header_cache;
-	public function __construct($toller, $url, $cachefilename) {
-		parent::__construct($toller, $cachefilename);
+	protected $url, $header_path_r, $header_path_w, $headers;
+	protected $_expired, $_lastmod, $cache_control;
+	public function __construct(DuckToller $toller, string $cachefile, string $url) {
+		parent::__construct($toller, $cachefile);
 		$this->url = $url;
-		$this->header_path = dirname($cachefilename).'/.'.basename($cachefilename).'.http';
-
+		$this->min_age = max($toller->config['http']['min_age']-0, 1);
+		$this->max_age = max($toller->config['http']['max_age']-0, $this->min_age);
+		$this->header_path_r = dirname($cachefile).'/.'.basename($cachefile).'.http';
+		$this->header_path_w = $this->header_path_r . '2';
+		$this->loadHeaders();
 	}
 
-	public function fetch($cache) {
+	protected function loadHeaders() {
+		$lines = @file($this->header_path);
+		$this->headers = array();
+		if ($lines) {
+			$this->load('Loading http headers');
+			foreach ($lines as $line) {
+				$m = array();
+				if (preg_match('/(\w+):\s*(.+)\s*$/', $line, $m))
+					$this->headers[strtoupper($m[1])] = $m[2];
+			}
+		}
+		$this->cache_control = $this->loadCacheControl($this->getHeader('CACHE-CONTROL',''));
+		$this->calcLastMod();
+		$this->calcExpiry();
+	}
+
+	public function getHeader($key, $fallback=null) {
+		$key = strtoupper($key);
+		return isset($this->headers[$key]) ? $this->headers[$key] : $fallback;
+	}
+
+	protected function loadCacheControl(string $header) {
+		$parts = preg_split('\s*;\s*', strtolower($header));
+		$cc = array();
+		foreach ($parts as $p) {
+			$m = array();
+			if (preg_match('/^(\w+)\s*=\s*(.*)$/', $p, $m))
+				$cc[$m[1]] = $m[2];
+			else
+				$cc[$p] = true;
+		}
+		return $cc;
+	}
+
+	protected function checkCacheControl($key, $fallback=false, $src=null) {
+		$cc = $src || $this->cache_control;
+		return isset($cc[$key]) ? $cc[$key] : $fallback;
+	}
+
+	protected function calcLastMod() {
+		$lm = $this->getHeader('Last-Modified');
+		if ($lm) try {
+			$dt = new DateTime($lm);
+			$lm = $dt->getTimestamp();
+		} catch(Exception $ex) {
+			$this->log('Invalid Last-Modified value in header cache');
+			$lm = 0;
+		}
+		if (!$lm)
+		    $lm = $this->stat('mtime');
+		$this->_lastmod = $lm || 0;
+	}
+	public function lastModified() {
+		return $this->_lastmod;
+	}
+
+	protected function calcExpiry() {
+		$reason = null;
+		$now = time();
+		$http_age = $now - ($this->stat('mtime')||0);
+		$max_age = $this->checkCacheControl('s-maxage', $this->checkCacheControl('max-age', $this->max_age));
+		if ($http_age > $this->min_age) {
+			if ($this->url != $this->getHeader('URL'))
+				$reason = 'URL has changed';
+			elseif ($http_age > $max_age)
+				$reason = "max_age exceeded ($max_age)";
+			else try {
+				$expiry = $this->getHeader('Expiry');
+				if ($expiry) {
+					$dt = new DateTime($expiry);
+					if ($dt->getTimestamp() < $now)
+						$reason = "Expiry date reached ($expiry)";
+				}
+			} catch(Exception $ex) {
+				$reason = $ex->getMessage();
+			}
+		}
+		if ($reason)
+			$this->log('Expired: ' . $reason);
+		$this->_expired = ($reason != null);
+	}
+	public function expired() {
+		return $this->_expired;
+	}
+
+	protected function fetch($cache) {
 		$this->log('Fetching ' . $this->url);
 		$curl = curl_init($this->url);
 		$curl_ver = curl_version();
 		$ua = 'DuckToller/'.DuckToller::$version.' (curl '.$curl_ver['version'].')';
+		$header_cache = @fopen($this->header_path_w, 'wb');
+		if (!header_cache)
+			throw new Exception('Could not open header cache file for writing');
+		$url = "URL: " . $this->url . "\n\n";
+		$timeout = isset($this->toller->config['http']['timeout']) ? $this->toller->config['http']['timeout']-0 : 0;
+		fwrite($header_cache, $url, strlen($url));
 		curl_setopt_array($curl, array(
-			CURLOPT_CONNECTTIMEOUT => 2,
+			CURLOPT_CONNECTTIMEOUT => $timeout||9,
 			CURLOPT_FAILONERROR => TRUE,
 			CURLOPT_FILETIME => TRUE,
 			CURLOPT_FOLLOWLOCATION => TRUE,
@@ -29,10 +124,19 @@ class HttpCachable extends Cachable {
 			CURLOPT_RETURNTRANSFER => TRUE,
 			CURLOPT_TIMECONDITION => $this->lastModified(),
 			CURLOPT_USERAGENT => $ua,
-			CURLOPT_WRITEHEADER => $this->header_cache
+			CURLOPT_WRITEHEADER => $header_cache
 		));
 		$this->content = curl_exec($curl);
-
+		fclose($header_cache);
 		$curl_close($curl);
+	}
+
+	protected function writeCache($cache) {
+		if (@rename($this->header_path_w, $this->header_path_r)) {
+			parent::writeCache($cache);
+			$this->loadHeaders();
+		}
+		else
+			throw new Exception('Could not rename new http header file.  All is lost. :(');
 	}
 }
