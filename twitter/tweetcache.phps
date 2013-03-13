@@ -39,7 +39,9 @@ class TweetCache extends Cachable {
 		if (!preg_match('/^'.$this->feedmode[3].'$/', $feedparam))
 			throw new Exception('Invalid ' . $this->feedmode[2] . ' value for tweet request');
 		$basename = preg_match('/^\w{1,31}$/', $feedparam) ? strtolower($feedparam) : md5($feedparam);
-		$cachefile = 'feed/' . $this->feedmode[0] . "-$basename.atom";
+		$s = DIRECTORY_SEPARATOR;
+		$cachefile = "feed$s" . $this->feedmode[0] . "-$basename.atom";
+		$this->jsonfile = "feed$s." . $this->feedmode[0] . "-$basename.json";
 		parent::__construct($toller, $cachefile);
 		$this->max_age = 3600;
 		$this->loglabel = "tweetcache[$feedstring]";
@@ -73,6 +75,8 @@ class TweetCache extends Cachable {
 		#echo "<pre>"; print_r($toa->http_info); echo "\n"; print_r($tweets); echo "\n<pre>\n";
 		if ($hc != 200)
 			throw new Exception('Fail Whale! HTTP '.($hc||'timeout').' (after '.(time()-$start).'s)', $hc);
+		if (isset($this->config['savejson'])&&$this->config['savejson'])
+			@file_put_contents($this->jsonfile, json_encode($tweets));
 		if (isset($tweets->statuses))
 			$tweets = $tweets->statuses;
 		$n = count($tweets);
