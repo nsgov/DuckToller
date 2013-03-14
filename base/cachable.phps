@@ -1,7 +1,8 @@
 <?php
 /**
- * DuckToller | cachable.phps
- * © 2013 Province of Nova Scotia
+ * @package DuckToller
+ * @author David Nordlund
+ * @copyright © 2013, Province of Nova Scotia
  */
 
 /**
@@ -9,8 +10,9 @@
  * An abstract base class for all things that can be cached.
  */
 abstract class Cachable {
-	protected $toller, $_stat, $max_age, $loglabel, $content;
+	protected $toller, $_stat, $max_age, $loglabel, $mimetype, $charset, $content;
 	protected $path_r, $path_w;
+	public static $DATE_HTTP = 'D, d M Y H:i:s \G\M\T';
 
 	function __construct($toller, $cachefile) {
 		$s = DIRECTORY_SEPARATOR;
@@ -30,8 +32,11 @@ abstract class Cachable {
 		return $this->stat('mtime');
 	}
 
-	function mimetype() {
-		return "text/plain";
+	function getContentType() {
+		$ct = $this->mimetype;
+		if ($this->charset)
+			$ct .= '; charset=' . $this->charset;
+		return $ct;
 	}
 
 	function age() {
@@ -42,10 +47,9 @@ abstract class Cachable {
 		return $this->age() > $this->max_age;
 	}
 
-	function getContent() {
+	function toll() {
 		if (!$this->content || $this->expired())
 			$this->load();
-		return $this->content;
 	}
 
 	protected function load() {
@@ -93,5 +97,18 @@ abstract class Cachable {
 
 	protected function log($msg) {
 		$this->toller->bark($this->loglabel . ": " . $msg);
+	}
+
+	function serveHeaders() {
+		header('Content-type: '.$this->getContentType());
+		$lm = $this->lastModified();
+		if ($lm)
+			header('Last-Modified: '.gmdate(Cachable::$DATE_HTTP, $lm));
+		if ($this->max_age)
+			header('Cache-Control: max-age='.$this->max_age-0);
+	}
+
+	function serveContent() {
+		echo $this->content;
 	}
 }

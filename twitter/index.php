@@ -30,6 +30,6 @@ if (isset($_GET['feed'])) {
 	$duck = new TwitterAvatar($ducktoller, $_GET['avatar']);
 }
 if ($duck)
-	$ducktoller->toll($duck)->retrieve()->deliver();
+	$ducktoller->retrieve($duck);
 
 #echo join("\n", $ducktoller->log);

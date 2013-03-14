@@ -50,6 +50,8 @@ class TweetCache extends Cachable {
 		$this->params = array($this->feedmode[2] => $feedparam);
 		$this->atom = new DOMDocument();
 		$this->avatar_urls = array();
+		$this->mimetype = 'application/atom+xml';
+		$this->charset  = 'utf-8';
 	}
 
 	function mimetype() {

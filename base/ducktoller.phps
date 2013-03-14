@@ -14,10 +14,6 @@ class DuckToller {
 	public static $version = "0.1";
 	public $config, $path, $log, $timezone;
 
-	/** The cachable object to operate on */
-	protected $duck;
-	protected $content;
-
 	function __construct($config_ini) {
 		$this->path = realpath(dirname($config_ini));
 		$this->config = parse_ini_file($config_ini, true);
@@ -35,25 +31,22 @@ class DuckToller {
 		return $path;
 	}
 
-	/** Assign the Cachable object for this DuckToller to operate on.
-	 * @return DuckToller return this DuckToller instance.
-	 */
-	function toll(Cachable $c) {
-		$this->duck = $c;
-		return $this;
-	}
-
-	function retrieve() {
-		$this->content = $this->duck->getContent();
-		return $this;
-	}
-
-	/** Output the assigned cachable object, and set related HTTP headers.
-	 * @return DuckToller return this DuckToller instance.
-	 */
-	function deliver() {
-		header('Content-type: ' . $this->duck->mimetype());
-		echo $this->content;
+	function retrieve(Cachable $duck) {
+		$method = isset($_SERVER['REQUEST_METHOD']) ? $_SERVER['REQUEST_METHOD'] : 'GET';
+		$showcontent = ($method == 'GET');
+		$duck->toll();
+		if (isset($_SERVER['HTTP_IF_MODIFIED_SINCE'])) try {
+			$since = new DateTime($_SERVER['HTTP_IF_MODIFIED_SINCE']);
+			if ($duck->lastModified() <= $since->getTimestamp()) {
+				header('HTTP/1.1 304 Not Modified', true, 304);
+				$showcontent = false;
+			}
+		} catch (Exception $ex) {
+			$this->bark('Checking If-Modified-Since: '.$ex->getMessage());
+		}
+		$duck->serveHeaders();
+		if ($showcontent)
+			$duck->serveContent();
 	}
 
 	function bark($msg) {

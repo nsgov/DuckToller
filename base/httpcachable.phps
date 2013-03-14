@@ -8,6 +8,7 @@
 class HttpCachable extends Cachable {
 	protected $url, $header_path_r, $header_path_w, $headers;
 	protected $_expired, $_lastmod, $cache_control;
+
 	public function __construct(DuckToller $toller, $cachefile, $url) {
 		parent::__construct($toller, $cachefile);
 		$this->url = $url;
@@ -28,6 +29,11 @@ class HttpCachable extends Cachable {
 				if (preg_match('/^([-\w]+):\s*(.+)\s*$/', $line, $m))
 					$this->headers[strtoupper($m[1])] = $m[2];
 			}
+		}
+		$ct = $this->getHeader('CONTENT-TYPE');
+		if ($ct) {
+			$ct = preg_split('/\s*;\s*/', $ct);
+			$this->mimetype = $ct[0];
 		}
 		$this->cache_control = $this->loadCacheControl($this->getHeader('CACHE-CONTROL',''));
 		$this->calcLastMod();
@@ -141,9 +147,5 @@ class HttpCachable extends Cachable {
 			@unlink($this->header_path_w);
 			throw new Exception('Could not rename new http header file.  All is lost. :(');
 		}
-	}
-
-	public function mimetype() {
-		return $this->getHeader('Content-type');
 	}
 }
