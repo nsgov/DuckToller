@@ -8,7 +8,7 @@
 class HttpCachable extends Cachable {
 	protected $url, $header_path_r, $header_path_w, $headers;
 	protected $_expired, $_lastmod, $cache_control;
-	public function __construct(DuckToller $toller, string $cachefile, string $url) {
+	public function __construct(DuckToller $toller, $cachefile, $url) {
 		parent::__construct($toller, $cachefile);
 		$this->url = $url;
 		$this->min_age = max($toller->config['http']['min_age']-0, 1);
@@ -39,8 +39,8 @@ class HttpCachable extends Cachable {
 		return isset($this->headers[$key]) ? $this->headers[$key] : $fallback;
 	}
 
-	protected function loadCacheControl(string $header) {
-		$parts = preg_split('\s*;\s*', strtolower($header));
+	protected function loadCacheControl($header) {
+		$parts = preg_split('/\s*;\s*/', strtolower($header));
 		$cc = array();
 		foreach ($parts as $p) {
 			$m = array();
