@@ -12,7 +12,7 @@ require_once(DUCKTOLLER_PATH.'base/cachable.phps');
 
 class DuckToller {
 	public static $version = "0.1";
-	public $config, $path, $log;
+	public $config, $path, $log, $timezone;
 
 	/** The cachable object to operate on */
 	protected $duck;
@@ -22,7 +22,9 @@ class DuckToller {
 		$this->path = realpath(dirname($config_ini));
 		$this->config = parse_ini_file($config_ini, true);
 		$this->log = array("DuckToller (" . self::$version . ')');
-		date_default_timezone_set($this->config['ducktoller']['timezone']);
+		$timezone = $this->config['ducktoller']['timezone'];
+		date_default_timezone_set($timezone);
+		$this->timezone = new DateTimeZone($timezone);
 	}
 
 	function path($path) {

@@ -152,14 +152,14 @@ class TweetCache extends Cachable {
 		$entry = $this->appendAtomTag($this->atom->documentElement, 'entry');
 		$retweeted_by = '';
 		$title = $tweet->user->screen_name . ': ' . $tweet->text;
-		$updated = $published = new DateTime($tweet->created_at);
+		$updated = $published = new DateTime($tweet->created_at, $this->toller->timezone);
 		if (isset($tweet->retweeted_status)) {
 			$retweeted_by = '<p class="retweetedby"><i class="tweet-icon"> </i> Retweeted by '.
 			                '<a href="https://twitter.com/'.
 							htmlspecialchars($tweet->user->screen_name).'">'.
 			                $tweet->user->name.'</a></p>';
 			$tweet = $tweet->retweeted_status;
-			$published = new DateTime($tweet->created_at);
+			$published = new DateTime($tweet->created_at, $this->toller->timezone);
 		}
 		$id = $tweet->id_str;
 		$username = $tweet->user->screen_name;
