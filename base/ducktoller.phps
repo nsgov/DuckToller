@@ -50,7 +50,7 @@ class DuckToller {
 	 * @return DuckToller return this DuckToller instance.
 	 */
 	function deliver() {
-		header('Content-type: ' . $this->duck->mimetype);
+		header('Content-type: ' . $this->duck->mimetype());
 		echo $this->content;
 	}
 
