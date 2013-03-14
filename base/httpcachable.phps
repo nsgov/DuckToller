@@ -19,13 +19,13 @@ class HttpCachable extends Cachable {
 	}
 
 	protected function loadHeaders() {
-		$lines = @file($this->header_path);
+		$lines = @file($this->header_path_r);
 		$this->headers = array();
 		if ($lines) {
 			$this->load('Loading http headers');
 			foreach ($lines as $line) {
 				$m = array();
-				if (preg_match('/(\w+):\s*(.+)\s*$/', $line, $m))
+				if (preg_match('/^([-\w]+):\s*(.+)\s*$/', $line, $m))
 					$this->headers[strtoupper($m[1])] = $m[2];
 			}
 		}
@@ -53,7 +53,7 @@ class HttpCachable extends Cachable {
 	}
 
 	protected function checkCacheControl($key, $fallback=false, $src=null) {
-		$cc = $src || $this->cache_control;
+		$cc = $src ? $src : $this->cache_control;
 		return isset($cc[$key]) ? $cc[$key] : $fallback;
 	}
 
@@ -68,7 +68,7 @@ class HttpCachable extends Cachable {
 		}
 		if (!$lm)
 		    $lm = $this->stat('mtime');
-		$this->_lastmod = $lm || 0;
+		$this->_lastmod = $lm ? $lm : 0;
 	}
 	public function lastModified() {
 		return $this->_lastmod;
@@ -77,13 +77,14 @@ class HttpCachable extends Cachable {
 	protected function calcExpiry() {
 		$reason = null;
 		$now = time();
-		$http_age = $now - ($this->stat('mtime')||0);
+		$mtime = $this->stat('mtime') - 0;
+		$http_age = $now - $mtime;
 		$max_age = $this->checkCacheControl('s-maxage', $this->checkCacheControl('max-age', $this->max_age));
 		if ($http_age > $this->min_age) {
 			if ($this->url != $this->getHeader('X-URL'))
 				$reason = 'URL has changed';
 			elseif ($http_age > $max_age)
-				$reason = "max_age exceeded ($max_age)";
+				$reason = "max_age exceeded ($http_age > $max_age)";
 			else try {
 				$expiry = $this->getHeader('Expiry');
 				if ($expiry) {
@@ -115,7 +116,7 @@ class HttpCachable extends Cachable {
 		$timeout = isset($this->toller->config['http']['timeout']) ? $this->toller->config['http']['timeout']-0 : 0;
 		fwrite($header_cache, $url, strlen($url));
 		curl_setopt_array($curl, array(
-			CURLOPT_CONNECTTIMEOUT => $timeout||9,
+			CURLOPT_CONNECTTIMEOUT => $timeout ? $timeout : 9,
 			CURLOPT_FAILONERROR => TRUE,
 			CURLOPT_FILETIME => TRUE,
 			CURLOPT_FOLLOWLOCATION => TRUE,
