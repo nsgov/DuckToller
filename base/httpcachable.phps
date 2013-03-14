@@ -80,7 +80,7 @@ class HttpCachable extends Cachable {
 		$http_age = $now - ($this->stat('mtime')||0);
 		$max_age = $this->checkCacheControl('s-maxage', $this->checkCacheControl('max-age', $this->max_age));
 		if ($http_age > $this->min_age) {
-			if ($this->url != $this->getHeader('URL'))
+			if ($this->url != $this->getHeader('X-URL'))
 				$reason = 'URL has changed';
 			elseif ($http_age > $max_age)
 				$reason = "max_age exceeded ($max_age)";
@@ -111,7 +111,7 @@ class HttpCachable extends Cachable {
 		$header_cache = @fopen($this->header_path_w, 'wb');
 		if (!header_cache)
 			throw new Exception('Could not open header cache file for writing');
-		$url = "URL: " . $this->url . "\n\n";
+		$url = 'X-URL: ' . $this->url . "\n\n";
 		$timeout = isset($this->toller->config['http']['timeout']) ? $this->toller->config['http']['timeout']-0 : 0;
 		fwrite($header_cache, $url, strlen($url));
 		curl_setopt_array($curl, array(
@@ -138,5 +138,7 @@ class HttpCachable extends Cachable {
 		}
 		else
 			throw new Exception('Could not rename new http header file.  All is lost. :(');
+	public function mimetype() {
+		return $this->getHeader('Content-type');
 	}
 }
