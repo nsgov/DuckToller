@@ -14,7 +14,7 @@
  * The cache is saved as an Atom feed.
  */
 class TweetCache extends Cachable {
-	protected $atom, $entries, $config, $feedmode, $params;
+	protected $atom, $entries, $config, $feedmode, $params, $avatar_urls;
 	protected static $modes = array(
 		 //           mode       API endpoint               primary param  valid param
 		'@' => array('user',    '/statuses/user_timeline', 'screen_name', '\w{1,15}'),
@@ -29,7 +29,7 @@ class TweetCache extends Cachable {
 	);
 
 	function __construct($toller, $keys, $feedstring) {
-		$this->config = $toller->config['tweetcache'];
+		$this->config = $toller->config['twitter'];
 		$this->keys = $keys;
 		$feedchar = $feedstring{0};
 		$feedparam = substr($feedstring, 1);
@@ -49,6 +49,7 @@ class TweetCache extends Cachable {
 			$feedparam = '#'.$feedparam;
 		$this->params = array($this->feedmode[2] => $feedparam);
 		$this->atom = new DOMDocument();
+		$this->avatar_urls = array();
 	}
 
 	function mimetype() {
@@ -83,6 +84,7 @@ class TweetCache extends Cachable {
 		$this->log('Received '.$n.' new tweet'.($n==1?'':'s'));
 		if ($n > 0)
 			$this->content = $this->generateFeed($tweets);
+		$this->generateAvatarCache();
 		return $this->content;
 	}
 
@@ -172,7 +174,7 @@ class TweetCache extends Cachable {
 		$this->appendAtomTag($author, 'name', null, $tweet->user->name);
 		$this->appendAtomTag($author, 'uri', null, $author_url);
 		$this->appendTwitterTag($author, 'screen_name', $username);
-		$imgsrc = $tweet->user->profile_image_url;
+		$imgsrc = $this->createImgSrc($tweet->user->screen_name, $tweet->user->profile_image_url);
 		$this->appendTwitterTag($author, 'profile_image_url', $imgsrc);
 		$this->appendAtomTag($entry, 'published', null, $published->format(DateTime::ATOM));
 		$this->appendAtomTag($entry, 'updated', null, $updated->format(DateTime::ATOM));
@@ -246,6 +248,35 @@ class TweetCache extends Cachable {
 				$html[] = iconv_substr($text, $idx, $indices[$i+1] - $idx, 'UTF-8');
 		}
 		return implode($html);
+	}
+
+	protected function createImgSrc($username, $url) {
+		$imgsrc = $url;
+		if (isset($this->config['avatar_url'])) {
+			$username = strtolower($username);
+			$this->avatar_urls[$username] = $url;
+			$imgsrc = str_replace('{screen_name}', $username, $this->config['avatar_url']);
+		}
+		return $imgsrc;
+	}
+
+	protected function generateAvatarCache() {
+		foreach ($this->avatar_urls as $name => $url) {
+			$url_file = "avatar/.$name.url";
+			$url_file_w = $url_file.'w';
+			$oldurl = '';
+			if (file_exists($url_file))
+				$oldurl = trim(@file_get_contents($url_file));
+			if ($url != $oldurl) {
+				$f = @fopen($url_file, 'xb');
+				if ($f) {
+					$url = "$url\n";
+					fwrite($f, $url, strlen($url));
+					fclose($f);
+					@rename($url_file_w, $url_file) || @unlink($url_file_w);
+				}
+			}
+		}
 	}
 
 	private function xmlTag($doc, $ns, $tagName, $attr=null, $text=null) {
