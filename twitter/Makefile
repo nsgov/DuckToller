@@ -11,4 +11,6 @@ clean: cleancache
 	rm -f $(FILES)
 
 cleancache:
-	rm -f avatar/* feed/*
+	rm -fr avatar feed
+	mkdir avatar && mkdir feed
+	chmod 777 avatar feed
