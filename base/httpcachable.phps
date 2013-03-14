@@ -126,9 +126,10 @@ class HttpCachable extends Cachable {
 			CURLOPT_USERAGENT => $ua,
 			CURLOPT_WRITEHEADER => $header_cache
 		));
-		$this->content = curl_exec($curl);
+		$content = curl_exec($curl);
 		fclose($header_cache);
-		$curl_close($curl);
+		curl_close($curl);
+		return $content;
 	}
 
 	protected function writeCache($cache) {
