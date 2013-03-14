@@ -136,9 +136,12 @@ class HttpCachable extends Cachable {
 		if (@rename($this->header_path_w, $this->header_path_r)) {
 			parent::writeCache($cache);
 			$this->loadHeaders();
-		}
-		else
+		} else {
+			@unlink($this->header_path_w);
 			throw new Exception('Could not rename new http header file.  All is lost. :(');
+		}
+	}
+
 	public function mimetype() {
 		return $this->getHeader('Content-type');
 	}
