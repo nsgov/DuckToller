@@ -124,6 +124,7 @@ class HttpCachable extends Cachable {
 		curl_setopt_array($curl, array(
 			CURLOPT_CONNECTTIMEOUT => $timeout ? $timeout : 9,
 			CURLOPT_FAILONERROR => TRUE,
+			CURLOPT_FILE => $cache,
 			CURLOPT_FILETIME => TRUE,
 			CURLOPT_FOLLOWLOCATION => TRUE,
 			CURLOPT_MAXREDIRS => 5,
@@ -133,17 +134,12 @@ class HttpCachable extends Cachable {
 			CURLOPT_USERAGENT => $ua,
 			CURLOPT_WRITEHEADER => $header_cache
 		));
-		$content = curl_exec($curl);
+		curl_exec($curl);
 		fclose($header_cache);
 		curl_close($curl);
-		return $content;
-	}
-
-	protected function writeCache($cache) {
-		if (@rename($this->header_path_w, $this->header_path_r)) {
-			parent::writeCache($cache);
+		if (@rename($this->header_path_w, $this->header_path_r))
 			$this->loadHeaders();
-		} else {
+		else {
 			@unlink($this->header_path_w);
 			throw new Exception('Could not rename new http header file.  All is lost. :(');
 		}

@@ -10,7 +10,7 @@
  * An abstract base class for all things that can be cached.
  */
 abstract class Cachable {
-	protected $toller, $_stat, $max_age, $loglabel, $mimetype, $charset, $content;
+	protected $toller, $_stat, $max_age, $loglabel, $mimetype, $charset;
 	protected $path_r, $path_w;
 	public static $DATE_HTTP = 'D, d M Y H:i:s \G\M\T';
 
@@ -48,52 +48,33 @@ abstract class Cachable {
 	}
 
 	function toll() {
-		if (!$this->content || $this->expired())
-			$this->load();
-	}
-
-	protected function load() {
-		$this->content = '';
-		$age = $this->age();
-		$expired = $this->expired();
-		$this->log("Cache age: $age seconds" . ($expired?' (expired)':''));
-		if ($expired || !$this->stat('size')) {
-			$write = @fopen($this->path_w, 'xb');
-			if ($write) {
+		$toll = '';
+		if (!file_exists($this->path_r)) $toll = 'Cache file does not exist';
+		elseif ($this->expired()) $toll = 'Cache expired';
+		if ($toll) {
+			$this->log('toll: ' . $toll);
+			if (($cache = @fopen($this->path_w, 'xb'))!=false) {
 				try {
-					$this->content = $this->fetch($cache);
-					$this->writeCache($write);
-					fflush($write);
-					if (!rename($this->path_w, $this->path_r))
-						$this->log('rename failed in Cachable::load');
+					$fetched = $this->fetch($cache);
+					if (is_string($fetched))
+						fwrite($cache, $fetched, strlen($fetched));
+					$this->log('Wrote '.ftell($cache).' bytes to cache');
+					fclose($cache);
+					if ($fetched && !rename($this->path_w, $this->path_r))
+						$this->log('rename failed in Cachable::toll');
+					else
+						@unlink($this->path_r);
 				} catch(Exception $ex) {
+					fclose($cache);
+					@unlink($this->path_w);
 					$this->log($ex->getMessage());
 				}
-				fclose($write);
 			} else
-				$this->log('write cache already exists, another process must be updating');
-		}
-		if (!$this->content) {
-			$this->log('Loading from cache');
-			$this->loadFromCache();
+				$this->log('Cache write in progress by another process.');
 		}
 	}
 
-	protected function writeCache($cache) {
-		$len = strlen($this->content);
-		if ($len) {
-			$this->log("Writing $len bytes to cache");
-			$written = fwrite($cache, $this->content, $len);
-			$this->log("Wrote $written bytes");
-		} else
-			$this->log('Received empty content');
-	}
-
-	abstract protected function fetch($cache);  // load content fresh from the source into $this->content
-
-	protected function loadFromCache() {
-		$this->content = @file_get_contents($this->path_r);
-	}
+	abstract protected function fetch($cache);  // load content fresh from the source
 
 	protected function log($msg) {
 		$this->toller->bark($this->loglabel . ": " . $msg);
@@ -109,6 +90,11 @@ abstract class Cachable {
 	}
 
 	function serveContent() {
-		echo $this->content;
+		$bytes = filesize($this->path_r);
+		if (!headers_sent()) {
+			header('Content-Length: '.$bytes);
+			ob_end_clean();
+		}
+		readfile($this->path_r);
 	}
 }

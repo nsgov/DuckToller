@@ -11,7 +11,7 @@ define("DUCKTOLLER_PATH", dirname(__DIR__).'/');
 require_once(DUCKTOLLER_PATH.'base/cachable.phps');
 
 class DuckToller {
-	public static $version = "0.1";
+	public static $version = "0.2";
 	public $config, $path, $log, $timezone;
 
 	function __construct($config_ini) {
@@ -51,6 +51,7 @@ class DuckToller {
 
 	function bark($msg) {
 		$this->log[] = $msg;
+		error_log($msg);
 	}
 
 	/**

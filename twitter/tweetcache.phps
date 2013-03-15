@@ -54,10 +54,6 @@ class TweetCache extends Cachable {
 		$this->charset  = 'utf-8';
 	}
 
-	function mimetype() {
-		return "application/atom+xml";
-	}
-
 	protected function fetch($cache) {
 		require_once(DUCKTOLLER_PATH.'lib/twitteroauth/twitteroauth.php');
 		$this->loadFromCache();
@@ -84,22 +80,19 @@ class TweetCache extends Cachable {
 			$tweets = $tweets->statuses;
 		$n = count($tweets);
 		$this->log('Received '.$n.' new tweet'.($n==1?'':'s'));
+		$content = null;
 		if ($n > 0)
-			$this->content = $this->generateFeed($tweets);
+			$content = $this->generateFeed($tweets);
 		$this->generateAvatarCache();
-		return $this->content;
+		return $content;
 	}
 
 	protected function loadFromCache() {
-		if (!$this->content) {
-			parent::loadFromCache();
-			if ($this->content)
-				$this->atom->loadXML($this->content);
-			if (!$this->atom->documentElement)
-				$this->atom->loadXML('<?xml version="1.0" encoding="utf-8"?>'.
-				                     '<feed xmlns="'.self::$XMLNS['atom'].'" xmlns:twitter="'.self::$XMLNS['twitter'].'"/>');
-		}
-		else $this->log('Using cached tweets');
+		if (file_exists($this->path_r))
+			$this->atom->load($this->path_r);
+		else
+			$this->atom->loadXML('<?xml version="1.0" encoding="utf-8"?>'.
+			                     '<feed xmlns="'.self::$XMLNS['atom'].'" xmlns:twitter="'.self::$XMLNS['twitter'].'"/>');
 	}
 
 	protected function extractEntries() {
@@ -149,6 +142,7 @@ class TweetCache extends Cachable {
 			$this->generateEntry($t);
 		foreach ($this->entries as $e)
 			$feed->appendChild($e);
+		$this->atom->formatOutput = TRUE;
 		return $this->atom->saveXML($feed);
 	}
 
