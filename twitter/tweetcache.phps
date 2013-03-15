@@ -103,7 +103,7 @@ class TweetCache extends Cachable {
 		$tags = $feed->getElementsByTagNameNS(self::$XMLNS['atom'], 'entry');
 		$this->log('Found ' . $tags->length . ' tweets in cache');
 		for ($i = $tags->length; $i--;)
-			$this->entries[$i] = $feed->removeChild($tags->item($i));
+			$this->entries[] = $feed->removeChild($tags->item(0));
 	}
 
 	protected function getMaxId() {
