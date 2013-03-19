@@ -14,7 +14,8 @@
  * The cache is saved as an Atom feed.
  */
 class TweetCache extends Cachable {
-	protected $atom, $entries, $config, $feedmode, $params, $avatar_urls;
+	protected $atom, $entries, $feedmode, $params;
+	protected $avatar_base_url, $avatar_path, $avatar_urls;
 	protected static $modes = array(
 		 //           mode       API endpoint               primary param  valid param
 		'@' => array('user',    '/statuses/user_timeline', 'screen_name', '\w{1,15}'),
@@ -29,7 +30,6 @@ class TweetCache extends Cachable {
 	);
 
 	function __construct($toller, $keys, $feedstring) {
-		$this->config = $toller->config['twitter'];
 		$this->keys = $keys;
 		$feedchar = $feedstring{0};
 		$feedparam = substr($feedstring, 1);
@@ -38,17 +38,14 @@ class TweetCache extends Cachable {
 		$this->feedmode = self::$modes[$feedchar];
 		if (!preg_match('/^'.$this->feedmode[3].'$/', $feedparam))
 			throw new Exception('Invalid ' . $this->feedmode[2] . ' value for tweet request');
-		$basename = preg_match('/^\w{1,31}$/', $feedparam) ? strtolower($feedparam) : md5($feedparam);
-		$s = DIRECTORY_SEPARATOR;
-		$cachefile = "feed$s" . $this->feedmode[0] . "-$basename.atom";
-		parent::__construct($toller, $cachefile);
-		$this->meta_path_r = "feed$s." . $this->feedmode[0] . "-$basename.json";
-		$this->loglabel = "tweetcache[$feedstring]";
+		$basename = $this->feedmode[0].'-'.(preg_match('/^\w{1,31}$/', $feedparam) ?
+		                                    strtolower($feedparam) : md5($feedparam));
+		parent::__construct($toller, 'TwitterFeed', $basename, '.atom', '.json');
+		$this->loglabel = "TwitterFeed[$feedstring]";
 		if ($feedchar=='#')
 			$feedparam = '#'.$feedparam;
 		$this->params = array($this->feedmode[2] => $feedparam);
 		$this->atom = new DOMDocument();
-		$this->avatar_urls = array();
 		$this->mimetype = 'application/atom+xml';
 		$this->charset  = 'utf-8';
 	}
@@ -67,7 +64,7 @@ class TweetCache extends Cachable {
 		                        $this->keys['OAUTH_TOKEN'],
 		                        $this->keys['OAUTH_TOKEN_SECRET']);
 		$toa->host = 'https://api.twitter.com/1.1';
-		$toa->connecttimeout = $this->config['timeout'];
+		$toa->connecttimeout = $this->config->get('connection_timeout', 9);
 		$toa->decode_json = FALSE;
 		$tweets = $toa->get($this->feedmode[1], $this->params);
 		$hc = $toa->http_code;
@@ -82,6 +79,10 @@ class TweetCache extends Cachable {
 		$this->log('Received '.$n.' new tweet'.($n==1?'':'s'));
 		$content = null;
 		if ($n > 0) {
+			$avatar_config = $this->toller->config->section('TwitterAvatar');
+			$this->avatar_base_url = $avatar_config->get('URL');
+			$this->avatar_urls = array();
+			$this->avatar_path = $avatar_config->getCachePath() . DIRECTORY_SEPARATOR;
 			$content = $this->generateFeed($tweets);
 			$this->generateAvatarCache();
 		}
@@ -249,17 +250,17 @@ class TweetCache extends Cachable {
 
 	protected function createImgSrc($username, $url) {
 		$imgsrc = $url;
-		if (isset($this->config['avatar_url'])) {
+		if ($this->avatar_base_url) {
 			$username = strtolower($username);
 			$this->avatar_urls[$username] = $url;
-			$imgsrc = str_replace('{screen_name}', $username, $this->config['avatar_url']);
+			$imgsrc = str_replace('{screen_name}', $username, $this->avatar_base_url);
 		}
 		return $imgsrc;
 	}
 
 	protected function generateAvatarCache() {
 		foreach ($this->avatar_urls as $name => $url) {
-			$url_file = "avatar/.$name.url";
+			$url_file = $this->avatar_path.".$name.url";
 			$url_file_w = $url_file.'w';
 			$oldurl = '';
 			if (file_exists($url_file))

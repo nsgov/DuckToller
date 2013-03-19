@@ -12,20 +12,22 @@ require_once(__DIR__.'/cachecontrol.phps');
  * An abstract base class for all things that can be cached.
  */
 abstract class Cachable {
-	protected $toller, $loglabel;
+	protected $toller, $config, $loglabel;
 	protected $cache_control, $mimetype, $charset, $last_modified;
 	protected $content_path_r, $content_path_w, $meta_path_r, $meta_path_w;
 	public static $DATE_HTTP = 'D, d M Y H:i:s \G\M\T';
 
-	function __construct($toller, $cachefile) {
+	function __construct($toller, $config_id, $basename, $ext='.data', $meta_ext='.meta') {
 		$s = DIRECTORY_SEPARATOR;
 		$this->toller = $toller;
-		$filename = basename($cachefile);
-		$this->content_path_r = $cachefile;
-		$this->content_path_w = dirname($cachefile)."$s.".$filename;
-		$this->meta_path_r = $this->content_path_w . '.meta';
-		$this->meta_path_w = $this->meta_path_r . '.w';
-		$this->loglabel = $filename;
+		$this->config = $toller->config->section($config_id);
+		$path = $this->config->getCachePath() . DIRECTORY_SEPARATOR;
+		$this->content_path_r = $path.$basename.$ext;
+		$this->content_path_w = $path.'.'.$basename.$ext;
+		$this->meta_path_r    = $path.$basename.$meta_ext;
+		$this->meta_path_w    = $path.'.'.$basename.$meta_ext;
+		$this->loglabel = "$config_id[$filename]";
+		$this->cache_control = new CacheControl($this->config->get('cache-control', 'max-age=86400'));
 	}
 
 	function lastModified() {
@@ -123,7 +125,7 @@ abstract class Cachable {
 		}
 	}
 
-	abstract protected function fetch($cache);  // load content fresh from the source
+	abstract protected function fetch($cache, $meta);  // load content fresh from the source
 
 	protected function log($msg) {
 		$this->toller->bark($this->loglabel . ": " . $msg);
@@ -134,16 +136,16 @@ abstract class Cachable {
 		$lm = $this->lastModified();
 		if ($lm)
 			header('Last-Modified: '.gmdate(Cachable::$DATE_HTTP, $lm));
-		if ($this->cache_control)
-			$this->cache_control->setHeader();
+		#if ($this->cache_control)
+		#	$this->cache_control->setHeader();
 	}
 
 	function serveContent() {
-		$bytes = filesize($this->path_r);
+		$bytes = filesize($this->content_path_r);
 		if (!headers_sent()) {
 			header('Content-Length: '.$bytes);
 			ob_end_clean();
 		}
-		readfile($this->path_r);
+		readfile($this->content_path_r);
 	}
 }

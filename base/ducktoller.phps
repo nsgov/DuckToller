@@ -8,27 +8,19 @@
 /** The path that other PHP files can use to find DuckToller files */
 define("DUCKTOLLER_PATH", dirname(__DIR__).'/');
 
+require_once(DUCKTOLLER_PATH.'base/config.phps');
 require_once(DUCKTOLLER_PATH.'base/cachable.phps');
 
 class DuckToller {
 	public static $version = "0.2";
-	public $config, $path, $log, $timezone;
+	public $config, $log, $timezone;
 
 	function __construct($config_ini) {
-		$this->path = realpath(dirname($config_ini));
-		$this->config = parse_ini_file($config_ini, true);
-		$this->log = array("DuckToller (" . self::$version . ')');
-		$timezone = $this->config['ducktoller']['timezone'];
+		$this->config = Config::load($config_ini, 'DuckToller');
+		$this->log = array('DuckToller (' . self::$version . ')');
+		$timezone = $this->config->get('timezone', 'UTC');
 		date_default_timezone_set($timezone);
 		$this->timezone = new DateTimeZone($timezone);
-	}
-
-	function path($path) {
-		if ($path{0}!='/') {
-			$basename = basename($path);
-			$path = realpath($this->path.'/'.dirname($path)).'/'.$basename;
-		}
-		return $path;
 	}
 
 	function retrieve(Cachable $duck) {
@@ -69,7 +61,7 @@ class DuckToller {
 	 */
 	function checkOrigin() {
 		$allow = false;
-		$allowable = strtolower(trim($this->config['allow-origin']));
+		$allowable = strtolower(trim($this->config->get('allow-origin')));
 		if ($allowable == '*')
 			$allow = $origin = '*';
 		else {
