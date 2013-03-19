@@ -45,9 +45,17 @@ class DuckToller {
 		} catch (Exception $ex) {
 			$this->bark('Checking If-Modified-Since: '.$ex->getMessage());
 		}
-		$duck->serveHeaders();
-		if ($showcontent)
-			$duck->serveContent();
+		if (headers_sent()) {  # something bad happened
+			echo "<pre>Log:\n";
+			print_r($this->log);
+			echo "</pre>";
+		} else {
+			foreach ($this->log as $log)
+				header('X-DuckToller-Log: '.$log, FALSE);
+			$duck->serveHeaders();
+			if ($showcontent)
+				$duck->serveContent();
+		}
 	}
 
 	function bark($msg) {
