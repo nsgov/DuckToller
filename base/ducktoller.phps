@@ -36,8 +36,9 @@ class DuckToller {
 		$showcontent = ($method == 'GET');
 		$duck->toll();
 		if (isset($_SERVER['HTTP_IF_MODIFIED_SINCE'])) try {
+			$lm = $duck->lastModified() - 0;
 			$since = new DateTime($_SERVER['HTTP_IF_MODIFIED_SINCE']);
-			if ($duck->lastModified() <= $since->getTimestamp()) {
+			if ($lm && ($since->getTimestamp() >= $lm)) {
 				header('HTTP/1.1 304 Not Modified', true, 304);
 				$showcontent = false;
 			}
