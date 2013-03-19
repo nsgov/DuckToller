@@ -1,16 +1,26 @@
 FETCH:=../lib/fetch.sh
-FILES:=blue_bird_16.png everything-spritev2.png
-.PHONEY: twitter clean cleancache
+FILES:=everything-spritev2.png
+CACHE:=../cache/twitter
+FEED_CACHE:=$(CACHE)/feed
+AVATAR_CACHE:=$(CACHE)/avatar
+.PHONEY: twitter clean cleancache removecache
 
-twitter: $(FILES)
+twitter: $(FILES) $(FEED_CACHE) $(AVATAR_CACHE)
 
 %.png:
 	sh $(FETCH) . https://si0.twimg.com/images/dev/cms/intents/icons/sprites/$@
 
+$(CACHE):
+	[ -d "$@" ] || mkdir "$@"
+
+$(FEED_CACHE) $(AVATAR_CACHE): $(CACHE)
+	[ -d "$@" ] || mkdir "$@"
+	chmod 777 "$@"
+
 clean: cleancache
 	rm -f $(FILES)
 
-cleancache:
-	rm -fr avatar feed
-	mkdir avatar && mkdir feed
-	chmod 777 avatar feed
+removecache:
+	rm -fr "$(FEED_CACHE)" "$(AVATAR_CACHE)"
+
+cleancache: removecache $(FEED_CACHE) $(AVATAR_CACHE)

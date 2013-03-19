@@ -1,10 +1,7 @@
 all: lib twitter
 .PHONEY: clean recursive
 
-lib: recursive
-	$(MAKE) -C $@
-
-twitter: recursive
+lib twitter cache: recursive
 	$(MAKE) -C $@
 
 clean:
