@@ -6,38 +6,32 @@
  */
 
 class HttpCachable extends Cachable {
-	protected $url, $header_path_r, $header_path_w, $headers;
-	protected $_expired, $_lastmod, $cache_control;
+	protected $url, $headers;
 
 	public function __construct(DuckToller $toller, $cachefile, $url) {
 		parent::__construct($toller, $cachefile);
 		$this->url = $url;
-		$this->min_age = max($toller->config['http']['min_age']-0, 1);
-		$this->max_age = max($toller->config['http']['max_age']-0, $this->min_age);
-		$this->header_path_r = dirname($cachefile).'/.'.basename($cachefile).'.http';
-		$this->header_path_w = $this->header_path_r . '2';
-		$this->loadHeaders();
+		$this->meta_path_r = dirname($cachefile).'/.'.basename($cachefile).'.http';
 	}
 
 	protected function loadHeaders() {
-		$lines = @file($this->header_path_r);
-		$this->headers = array();
-		if ($lines) {
-			$this->load('Loading http headers');
-			foreach ($lines as $line) {
-				$m = array();
-				if (preg_match('/^([-\w]+):\s*(.+)\s*$/', $line, $m))
-					$this->headers[strtoupper($m[1])] = $m[2];
+		if (!$this->headers) {
+			$lines = @file($this->meta_path_r);
+			$this->headers = array();
+			if ($lines) {
+				$this->log('Loading cached http headers');
+				foreach ($lines as $line) {
+					$m = array();
+					if (preg_match('/^([-\w]+):\s*(.+)\s*$/', $line, $m))
+						$this->headers[strtoupper($m[1])] = $m[2];
+				}
+			}
+			$ct = $this->getHeader('CONTENT-TYPE');
+			if ($ct) {
+				$ct = preg_split('/\s*;\s*/', $ct);
+				$this->mimetype = $ct[0];
 			}
 		}
-		$ct = $this->getHeader('CONTENT-TYPE');
-		if ($ct) {
-			$ct = preg_split('/\s*;\s*/', $ct);
-			$this->mimetype = $ct[0];
-		}
-		$this->cache_control = $this->loadCacheControl($this->getHeader('CACHE-CONTROL',''));
-		$this->calcLastMod();
-		$this->calcExpiry();
 	}
 
 	public function getHeader($key, $fallback=null) {
@@ -45,81 +39,39 @@ class HttpCachable extends Cachable {
 		return isset($this->headers[$key]) ? $this->headers[$key] : $fallback;
 	}
 
-	protected function loadCacheControl($header) {
-		$parts = preg_split('/\s*;\s*/', strtolower($header));
-		$cc = array();
-		foreach ($parts as $p) {
-			$m = array();
-			if (preg_match('/^(\w+)\s*=\s*(.*)$/', $p, $m))
-				$cc[$m[1]] = $m[2];
-			else
-				$cc[$p] = true;
+	function getCacheControl() {
+		if (!$this->cache_control) {
+			$this->loadHeaders();
+			$this->cache_control = new CacheControl($this->getHeader('Cache-Control'));
 		}
-		return $cc;
+		return $this->cache_control;
 	}
 
-	protected function checkCacheControl($key, $fallback=false, $src=null) {
-		$cc = $src ? $src : $this->cache_control;
-		return isset($cc[$key]) ? $cc[$key] : $fallback;
-	}
-
-	protected function calcLastMod() {
-		$lm = $this->getHeader('Last-Modified');
-		if ($lm) try {
-			$dt = new DateTime($lm);
-			$lm = $dt->getTimestamp();
-		} catch(Exception $ex) {
-			$this->log('Invalid Last-Modified value in header cache');
-			$lm = 0;
-		}
-		if (!$lm)
-		    $lm = $this->stat('mtime');
-		$this->_lastmod = $lm ? $lm : 0;
-	}
-	public function lastModified() {
-		return $this->_lastmod;
-	}
-
-	protected function calcExpiry() {
-		$reason = null;
-		$now = time();
-		$mtime = $this->stat('mtime') - 0;
-		$http_age = $now - $mtime;
-		$max_age = $this->checkCacheControl('s-maxage', $this->checkCacheControl('max-age', $this->max_age));
-		if ($http_age > $this->min_age) {
-			if ($this->url != $this->getHeader('X-URL'))
-				$reason = 'URL has changed';
-			elseif ($http_age > $max_age)
-				$reason = "max_age exceeded ($http_age > $max_age)";
-			else try {
-				$expiry = $this->getHeader('Expiry');
-				if ($expiry) {
-					$dt = new DateTime($expiry);
-					if ($dt->getTimestamp() < $now)
-						$reason = "Expiry date reached ($expiry)";
-				}
-			} catch(Exception $ex) {
-				$reason = $ex->getMessage();
+	function expired() {
+		$expired = FALSE;
+		$this->loadHeaders();
+		if ($this->url != $this->getHeader('X-URL'))
+			$expired = 'URL has changed';
+		else try {
+			$expires = $this->getHeader('Expires');
+			if ($expires) {
+				$dt = new DateTime($expires);
+				if ($dt->getTimestamp() < time())
+					$expired = $expires;
 			}
+		} catch(Exception $ex) {
+			$expired = 'Expires header: ' . $ex->getMessage();
 		}
-		if ($reason)
-			$this->log('Expired: ' . $reason);
-		$this->_expired = ($reason != null);
-	}
-	public function expired() {
-		return $this->_expired;
+		return $expired;
 	}
 
-	protected function fetch($cache) {
+	protected function fetch($cache, $header_cache) {
 		$this->log('Fetching ' . $this->url);
 		$curl = curl_init($this->url);
 		$curl_ver = curl_version();
 		$ua = 'DuckToller/'.DuckToller::$version.' (curl '.$curl_ver['version'].')';
-		$header_cache = @fopen($this->header_path_w, 'wb');
-		if (!header_cache)
-			throw new Exception('Could not open header cache file for writing');
-		$url = 'X-URL: ' . $this->url . "\n\n";
 		$timeout = isset($this->toller->config['http']['timeout']) ? $this->toller->config['http']['timeout']-0 : 0;
+		$url = 'X-URL: ' . $this->url . "\n\n";
 		fwrite($header_cache, $url, strlen($url));
 		curl_setopt_array($curl, array(
 			CURLOPT_CONNECTTIMEOUT => $timeout ? $timeout : 9,
@@ -129,19 +81,27 @@ class HttpCachable extends Cachable {
 			CURLOPT_FOLLOWLOCATION => TRUE,
 			CURLOPT_MAXREDIRS => 5,
 			CURLOPT_REFERER => $_SERVER['HTTP_REFERER'],
-			CURLOPT_RETURNTRANSFER => TRUE,
 			CURLOPT_TIMECONDITION => $this->lastModified(),
 			CURLOPT_USERAGENT => $ua,
 			CURLOPT_WRITEHEADER => $header_cache
 		));
-		curl_exec($curl);
-		fclose($header_cache);
+		$curl_err = '';
+		$request_time = time();
+		if (!($success = curl_exec($curl)))
+			$curl_err = 'curl error #'.curl_errno($curl) . ': '. curl_error($curl);
+		$response_time = time();
+		$lastmod = curl_getinfo($curl, CURLINFO_FILETIME);
 		curl_close($curl);
-		if (@rename($this->header_path_w, $this->header_path_r))
-			$this->loadHeaders();
-		else {
-			@unlink($this->header_path_w);
-			throw new Exception('Could not rename new http header file.  All is lost. :(');
-		}
+		if (!$success)
+			throw new Exception($curl_err);
+		$this->last_modified = $lastmod;
+		return $success;
+	}
+
+	function serveHeaders() {
+		$age = $this->age();
+		if ($age)
+			header("Age: $age");
+		parent::serveHeaders();
 	}
 }

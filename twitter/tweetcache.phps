@@ -41,9 +41,8 @@ class TweetCache extends Cachable {
 		$basename = preg_match('/^\w{1,31}$/', $feedparam) ? strtolower($feedparam) : md5($feedparam);
 		$s = DIRECTORY_SEPARATOR;
 		$cachefile = "feed$s" . $this->feedmode[0] . "-$basename.atom";
-		$this->jsonfile = "feed$s." . $this->feedmode[0] . "-$basename.json";
 		parent::__construct($toller, $cachefile);
-		$this->max_age = 3600;
+		$this->meta_path_r = "feed$s." . $this->feedmode[0] . "-$basename.json";
 		$this->loglabel = "tweetcache[$feedstring]";
 		if ($feedchar=='#')
 			$feedparam = '#'.$feedparam;
@@ -54,7 +53,7 @@ class TweetCache extends Cachable {
 		$this->charset  = 'utf-8';
 	}
 
-	protected function fetch($cache) {
+	protected function fetch($cache, $jsonfile) {
 		require_once(DUCKTOLLER_PATH.'lib/twitteroauth/twitteroauth.php');
 		$this->loadFromCache();
 		$this->extractEntries();
@@ -69,27 +68,29 @@ class TweetCache extends Cachable {
 		                        $this->keys['OAUTH_TOKEN_SECRET']);
 		$toa->host = 'https://api.twitter.com/1.1';
 		$toa->connecttimeout = $this->config['timeout'];
+		$toa->decode_json = FALSE;
 		$tweets = $toa->get($this->feedmode[1], $this->params);
 		$hc = $toa->http_code;
 		#echo "<pre>"; print_r($toa->http_info); echo "\n"; print_r($tweets); echo "\n<pre>\n";
 		if ($hc != 200)
 			throw new Exception('Fail Whale! HTTP '.($hc||'timeout').' (after '.(time()-$start).'s)', $hc);
-		if (isset($this->config['savejson'])&&$this->config['savejson'])
-			@file_put_contents($this->jsonfile, json_encode($tweets));
+		fwrite($jsonfile, $tweets, strlen($tweets));
+		$tweets = json_decode($tweets);
 		if (isset($tweets->statuses))
 			$tweets = $tweets->statuses;
 		$n = count($tweets);
 		$this->log('Received '.$n.' new tweet'.($n==1?'':'s'));
 		$content = null;
-		if ($n > 0)
+		if ($n > 0) {
 			$content = $this->generateFeed($tweets);
-		$this->generateAvatarCache();
+			$this->generateAvatarCache();
+		}
 		return $content;
 	}
 
 	protected function loadFromCache() {
-		if (file_exists($this->path_r))
-			$this->atom->load($this->path_r);
+		if (file_exists($this->content_path_r))
+			$this->atom->load($this->content_path_r);
 		else
 			$this->atom->loadXML('<?xml version="1.0" encoding="utf-8"?>'.
 			                     '<feed xmlns="'.self::$XMLNS['atom'].'" xmlns:twitter="'.self::$XMLNS['twitter'].'"/>');

@@ -5,31 +5,31 @@
  * @copyright © 2013, Province of Nova Scotia
  */
 
+require_once(__DIR__.'/cachecontrol.phps');
+
 /**
  * Cachable
  * An abstract base class for all things that can be cached.
  */
 abstract class Cachable {
-	protected $toller, $_stat, $max_age, $loglabel, $mimetype, $charset;
-	protected $path_r, $path_w;
+	protected $toller, $loglabel;
+	protected $cache_control, $mimetype, $charset, $last_modified;
+	protected $content_path_r, $content_path_w, $meta_path_r, $meta_path_w;
 	public static $DATE_HTTP = 'D, d M Y H:i:s \G\M\T';
 
 	function __construct($toller, $cachefile) {
 		$s = DIRECTORY_SEPARATOR;
 		$this->toller = $toller;
-		$this->path_r = $cachefile;
-		$this->path_w = dirname($cachefile)."$s.".basename($cachefile);
-		$this->loglabel = basename($cachefile);
-	}
-
-	function stat($field=null) {
-		if (!$this->_stat)
-			!$this->_stat = @stat($this->path_r);
-		return ($this->_stat && $field) ? $this->_stat[$field] : $this->_stat;
+		$filename = basename($cachefile);
+		$this->content_path_r = $cachefile;
+		$this->content_path_w = dirname($cachefile)."$s.".$filename;
+		$this->meta_path_r = $this->content_path_w . '.meta';
+		$this->meta_path_w = $this->meta_path_r . '.w';
+		$this->loglabel = $filename;
 	}
 
 	function lastModified() {
-		return $this->stat('mtime');
+		return $this->last_modified;
 	}
 
 	function getContentType() {
@@ -40,37 +40,86 @@ abstract class Cachable {
 	}
 
 	function age() {
-		return time() - $this->lastModified();
+		$mtime = (file_exists($this->meta_path_r)) ? filemtime($this->meta_path_r) : 0;
+		return $mtime ? time() - $mtime : 0;
+	}
+
+	function getCacheControl() {
+		if (!$this->cache_control)
+			$this->cache_control = new CacheControl();
+		return $this->cache_control;
 	}
 
 	function expired() {
-		return $this->age() > $this->max_age;
+		return $this->age() > 86400;
+	}
+
+	function shouldRevalidate() {
+		$reason = FALSE;
+		if (!file_exists($this->content_path_r))
+			$reason = 'Cache file does not exist';
+		elseif (!file_exists($this->meta_path_r))
+			$reason = 'Cache meta data missing';
+		else {
+			$age = $this->age();
+			if ($age < 60)
+				$this->log('Cache is fresh');
+			else {
+				$cc = $this->getCacheControl();
+				$max_age = $cc->get('s-maxage', $cc->get('max-age', 86400));
+				if ($age > $max_age)
+					$reason = "Cache age > max-age ($age > $max_age)";
+				else
+					$this->log("Cache age <= max-age ($age <= $max_age)");
+			}
+			$reason = $this->expired();
+		}
+		if (is_string($reason))
+			$this->log($reason);
+		return $reason != FALSE;
 	}
 
 	function toll() {
-		$toll = '';
-		if (!file_exists($this->path_r)) $toll = 'Cache file does not exist';
-		elseif ($this->expired()) $toll = 'Cache expired';
-		if ($toll) {
-			$this->log('toll: ' . $toll);
-			if (($cache = @fopen($this->path_w, 'xb'))!=false) {
+		if ($this->shouldRevalidate()) {
+			$metafile = null;
+			if (($cache = @fopen($this->content_path_w, 'xb'))) {
 				try {
-					$fetched = $this->fetch($cache);
+					if (!($metafile = @fopen($this->meta_path_w, 'wb')))
+						throw new Exception('Unable to open meta data write file.');
+					$lastmod = $this->last_modified;
+					$fetched = $this->fetch($cache, $metafile);
 					if (is_string($fetched))
 						fwrite($cache, $fetched, strlen($fetched));
-					$this->log('Wrote '.ftell($cache).' bytes to cache');
+					fflush($cache);
+					$bytes = ftell($cache);
 					fclose($cache);
-					if ($fetched && !rename($this->path_w, $this->path_r))
-						$this->log('rename failed in Cachable::toll');
+					fclose($metafile);
+					$cache = $metafile = null;
+					if (!$fetched)
+						$this->log('Fetch received no new content');
+					elseif (!@rename($this->meta_path_w, $this->meta_path_r)) {
+						@touch($this->meta_path_r);
+						throw new Exception('rename metadata failed in Cachable::toll');
+					} elseif (@rename($this->content_path_w, $this->content_path_r)) {
+						clearstatcache();
+						$this->log('Wrote '.$bytes.' bytes to cache');
+					} else
+						throw new Exception('rename content failed in Cachable::toll');
+					if (!$fetched)
+						unlink($this->content_path_w);
+					if (($this->last_modified != $lastmod) && ($this->last_modified > 0))
+						@touch($this->content_path_r, $this->last_modified);
 					else
-						@unlink($this->path_r);
+						$this->last_modified = time();
 				} catch(Exception $ex) {
-					fclose($cache);
-					@unlink($this->path_w);
+					if ($cache) fclose($cache);
+					if ($metafile) fclose($metafile);
+					@unlink($this->content_path_w);
+					@unlink($this->meta_path_w);
 					$this->log($ex->getMessage());
 				}
 			} else
-				$this->log('Cache write in progress by another process.');
+				$this->log('Cache write in progress by another process');
 		}
 	}
 
@@ -85,8 +134,8 @@ abstract class Cachable {
 		$lm = $this->lastModified();
 		if ($lm)
 			header('Last-Modified: '.gmdate(Cachable::$DATE_HTTP, $lm));
-		if ($this->max_age)
-			header('Cache-Control: max-age='.$this->max_age-0);
+		if ($this->cache_control)
+			$this->cache_control->setHeader();
 	}
 
 	function serveContent() {
