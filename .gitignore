@@ -1,8 +1,7 @@
 .DS_Store
 *.komodoproject
+cache/*
 lib/twitteroauth
-twitter/avatar
-twitter/feed
 twitter/keys.ini.php
 twitter/*.png
 .#*
