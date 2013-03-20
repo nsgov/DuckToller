@@ -22,7 +22,7 @@ class CacheControl {
 		foreach ($parts as $p) {
 			$eq = strpos($p, '=', 1);
 			$field = trim($eq ? substr($p, 0, $eq) : $p);
-			$this->fields[$feild] = $eq ? substr($p, $eq+1)-0 : TRUE;
+			$this->fields[$field] = $eq ? substr($p, $eq+1)-0 : TRUE;
 		}
 	}
 

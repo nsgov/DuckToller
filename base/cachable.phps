@@ -27,7 +27,7 @@ abstract class Cachable {
 		$this->meta_path_r    = $path.$basename.$meta_ext;
 		$this->meta_path_w    = $path.'.'.$basename.$meta_ext;
 		$this->loglabel = "$config_id[$filename]";
-		$this->cache_control = new CacheControl($this->config->get('cache-control', 'max-age=86400'));
+		$this->cache_control = new CacheControl($this->config->get('cache_control'));
 	}
 
 	function lastModified() {
@@ -52,8 +52,8 @@ abstract class Cachable {
 		return $this->cache_control;
 	}
 
-	function expired() {
-		return $this->age() > 86400;
+	function expired($age) {
+		return $age > 86400;
 	}
 
 	function shouldRevalidate() {
@@ -64,17 +64,15 @@ abstract class Cachable {
 			$reason = 'Cache meta data missing';
 		else {
 			$age = $this->age();
-			if ($age < 60)
-				$this->log('Cache is fresh');
-			else {
-				$cc = $this->getCacheControl();
-				$max_age = $cc->get('s-maxage', $cc->get('max-age', 86400));
+			$cc = $this->getCacheControl();
+			if (($max_age = $cc->get('s-maxage', $cc->get('max-age', -1))) > -1) {
 				if ($age > $max_age)
 					$reason = "Cache age > max-age ($age > $max_age)";
 				else
 					$this->log("Cache age <= max-age ($age <= $max_age)");
 			}
-			$reason = $this->expired();
+			if ((!$reason) && ($reason = $this->expired($age))===TRUE)
+				$this->log('Cache expired');
 		}
 		if (is_string($reason))
 			$this->log($reason);
@@ -97,9 +95,10 @@ abstract class Cachable {
 					fclose($cache);
 					fclose($metafile);
 					$cache = $metafile = null;
-					if (!$fetched)
+					if (!$fetched) {
 						$this->log('Fetch received no new content');
-					elseif (!@rename($this->meta_path_w, $this->meta_path_r)) {
+						@touch($this->meta_path_r);
+					} elseif (!@rename($this->meta_path_w, $this->meta_path_r)) {
 						@touch($this->meta_path_r);
 						throw new Exception('rename metadata failed in Cachable::toll');
 					} elseif (@rename($this->content_path_w, $this->content_path_r)) {
@@ -107,8 +106,10 @@ abstract class Cachable {
 						$this->log('Wrote '.$bytes.' bytes to cache');
 					} else
 						throw new Exception('rename content failed in Cachable::toll');
-					if (!$fetched)
+					if (!$fetched) {
 						unlink($this->content_path_w);
+						unlink($this->meta_path_w);
+					}
 					if (($this->last_modified != $lastmod) && ($this->last_modified > 0))
 						@touch($this->content_path_r, $this->last_modified);
 					else
@@ -136,8 +137,8 @@ abstract class Cachable {
 		$lm = $this->lastModified();
 		if ($lm)
 			header('Last-Modified: '.gmdate(Cachable::$DATE_HTTP, $lm));
-		#if ($this->cache_control)
-		#	$this->cache_control->setHeader();
+		if ($this->cache_control)
+			$this->cache_control->setHeader();
 	}
 
 	function serveContent() {

@@ -8,10 +8,9 @@
 class HttpCachable extends Cachable {
 	protected $url, $headers;
 
-	public function __construct(DuckToller $toller, $cachefile, $url) {
-		parent::__construct($toller, $cachefile);
+	public function __construct(DuckToller $toller, $url, $basename, $ext='.data', $meta_ext='.http') {
+		parent::__construct($toller, 'HTTP', $basename, $ext, $meta_ext);
 		$this->url = $url;
-		$this->meta_path_r = dirname($cachefile).'/.'.basename($cachefile).'.http';
 	}
 
 	protected function loadHeaders() {
