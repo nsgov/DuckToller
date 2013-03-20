@@ -6,11 +6,14 @@
  */
 
 class HttpCachable extends Cachable {
-	protected $url, $headers;
+	protected $url, $headers, $origin_cache_control, $static_url;
+	protected static $ORIGIN_URL_HEADER = 'X-DuckToller-Origin-URL';
 
 	public function __construct(DuckToller $toller, $url, $basename, $ext='.data', $meta_ext='.http') {
 		parent::__construct($toller, 'HTTP', $basename, $ext, $meta_ext);
 		$this->url = $url;
+		$this->headers = $this->origin_cache_control = null;
+		$static_url = TRUE;
 	}
 
 	protected function loadHeaders() {
@@ -39,9 +42,11 @@ class HttpCachable extends Cachable {
 	}
 
 	function getCacheControl() {
-		if (!$this->cache_control) {
+		if (!$this->origin_cache_control) {
 			$this->loadHeaders();
-			$this->cache_control = new CacheControl($this->getHeader('Cache-Control'));
+			$this->origin_cache_control = new CacheControl($this->getHeader('Cache-Control'));
+			if ($this->static_url)
+				$this->cache_control = $this->origin_cache_control;
 		}
 		return $this->cache_control;
 	}
@@ -49,7 +54,7 @@ class HttpCachable extends Cachable {
 	function expired() {
 		$expired = FALSE;
 		$this->loadHeaders();
-		if ($this->url != $this->getHeader('X-URL'))
+		if (!$static_url && ($this->url != $this->getHeader(self::$ORIGIN_URL_HEADER)))
 			$expired = 'URL has changed';
 		else try {
 			$expires = $this->getHeader('Expires');
@@ -69,29 +74,27 @@ class HttpCachable extends Cachable {
 		$curl = curl_init($this->url);
 		$curl_ver = curl_version();
 		$ua = 'DuckToller/'.DuckToller::$version.' (curl '.$curl_ver['version'].')';
-		$timeout = isset($this->toller->config['http']['timeout']) ? $this->toller->config['http']['timeout']-0 : 0;
-		$url = 'X-URL: ' . $this->url . "\n\n";
-		fwrite($header_cache, $url, strlen($url));
 		curl_setopt_array($curl, array(
-			CURLOPT_CONNECTTIMEOUT => $timeout ? $timeout : 9,
+			CURLOPT_CONNECTTIMEOUT => $this->config->get('connection_timeout', 9),
 			CURLOPT_FAILONERROR => TRUE,
 			CURLOPT_FILE => $cache,
 			CURLOPT_FILETIME => TRUE,
 			CURLOPT_FOLLOWLOCATION => TRUE,
-			CURLOPT_MAXREDIRS => 5,
+			CURLOPT_MAXREDIRS => $this->config->get('max_redirects', 9),
 			CURLOPT_REFERER => $_SERVER['HTTP_REFERER'],
 			CURLOPT_TIMECONDITION => $this->lastModified(),
 			CURLOPT_USERAGENT => $ua,
 			CURLOPT_WRITEHEADER => $header_cache
 		));
 		$curl_err = '';
-		$request_time = time();
 		if (!($success = curl_exec($curl)))
 			$curl_err = 'curl error #'.curl_errno($curl) . ': '. curl_error($curl);
-		$response_time = time();
 		$lastmod = curl_getinfo($curl, CURLINFO_FILETIME);
 		curl_close($curl);
-		if (!$success)
+		if ($success) {
+			$url = self::$ORIGIN_URL_HEADER . ': ' . $this->url . "\n\n";
+			fwrite($header_cache, $url, strlen($url));
+		} else
 			throw new Exception($curl_err);
 		$this->last_modified = $lastmod;
 		return $success;
