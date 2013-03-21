@@ -29,8 +29,11 @@ class TweetCache extends Cachable {
 		'xhtml'   => 'http://www.w3.org/1999/xhtml'
 	);
 
+	private static $TWITTER_API_KEY_NAMES = array(
+		'CONSUMER_KEY', 'CONSUMER_SECRET', 'OAUTH_TOKEN', 'OAUTH_TOKEN_SECRET'
+	);
+
 	function __construct($toller, $keys, $feedstring) {
-		$this->keys = $keys;
 		$feedchar = $feedstring{0};
 		$feedparam = substr($feedstring, 1);
 		if (!isset(self::$modes[$feedchar]))
@@ -41,7 +44,7 @@ class TweetCache extends Cachable {
 		$basename = $this->feedmode[0].'-'.(preg_match('/^\w{1,31}$/', $feedparam) ?
 		                                    strtolower($feedparam) : md5($feedparam));
 		parent::__construct($toller, $basename, '.atom', '.json');
-		$this->config = $this->config->section('TwitterFeed');
+		$this->config = $this->config->section('Twitter')->section('TwitterFeed');
 		$this->loglabel = "TwitterFeed[$feedstring]";
 		if ($feedchar=='#')
 			$feedparam = '#'.$feedparam;
@@ -49,6 +52,19 @@ class TweetCache extends Cachable {
 		$this->atom = new DOMDocument();
 		$this->mimetype = 'application/atom+xml';
 		$this->charset  = 'utf-8';
+	}
+
+	private function getTwitterAPIKeys() {
+		$keyfile = $this->config->getPath('api_keys');
+		if (!is_file($keyfile))
+			throw new Exception('Twitter api_key file not found');
+		$keys = parse_ini_file($keyfile);
+		$missing = array();
+		foreach (self::$TWITTER_API_KEY_NAMES as $key)
+			if (!isset($keys[$key]) || !strlen($keys[$key]))
+				throw new Exception("Don't forget your Twitter API keys! ".
+				                    'They need to be set in your twitter api_keys file.');
+		return parse_ini_file($keyfile);
 	}
 
 	protected function fetch($cache, $jsonfile) {
@@ -59,11 +75,12 @@ class TweetCache extends Cachable {
 		if ($since_id)
 			$this->params['since_id'] = $since_id;
 		$this->log('Fetching tweets from twitter' . ($since_id?" (since $since_id)":''));
+		$keys = $this->getTwitterAPIKeys();
 		$start = time();
-		$toa = new TwitterOAuth($this->keys['CONSUMER_KEY'],
-		                        $this->keys['CONSUMER_SECRET'],
-		                        $this->keys['OAUTH_TOKEN'],
-		                        $this->keys['OAUTH_TOKEN_SECRET']);
+		$toa = new TwitterOAuth($keys['CONSUMER_KEY'],
+		                        $keys['CONSUMER_SECRET'],
+		                        $keys['OAUTH_TOKEN'],
+		                        $keys['OAUTH_TOKEN_SECRET']);
 		$toa->host = 'https://api.twitter.com/1.1';
 		$toa->connecttimeout = $this->config->get('connection_timeout', 9);
 		$toa->decode_json = FALSE;
