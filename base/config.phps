@@ -38,7 +38,7 @@ class Config {
 		return $val;
 	}
 
-	function getCachePath() {
+	function getCachePath($basename=null) {
 		$root = $this->path_root;
 		$parts = array();
 		for ($i = count($this->section_list); $i--;) {
@@ -59,6 +59,7 @@ class Config {
 					$parts[] = $p;
 			}
 		}
-		return realpath($root.'/'.implode('/', $parts));
+		$path = realpath($root.'/'.implode('/', $parts));
+		return $basename ? $path.DIRECTORY_SEPARATOR.$basename : $path;
 	}
 }
