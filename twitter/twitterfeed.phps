@@ -33,7 +33,7 @@ class TwitterFeed extends Cachable {
 		'CONSUMER_KEY', 'CONSUMER_SECRET', 'OAUTH_TOKEN', 'OAUTH_TOKEN_SECRET'
 	);
 
-	function __construct($toller, $keys, $feedstring) {
+	function __construct($toller, $feedstring) {
 		$feedchar = $feedstring{0};
 		$feedparam = substr($feedstring, 1);
 		if (!isset(self::$modes[$feedchar]))
