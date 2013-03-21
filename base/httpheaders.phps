@@ -84,7 +84,7 @@ class HttpHeaders {
 			$fail = $ex;
 		} else
 			$fail = new Exception('Unable to read HttpHeader file');
-		fclose($handle);
+		if ($handle) fclose($handle);
 		if ($fail) throw $fail;
 	}
 }
