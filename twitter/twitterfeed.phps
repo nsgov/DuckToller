@@ -158,10 +158,19 @@ class TwitterFeed extends Cachable {
 		                                               'version'=> DuckToller::$version),
 		                     'DuckToller/'.DuckToller::$version);
 		$this->appendAtomTag($feed, 'updated', null, date(DATE_W3C));
+		$max_entries = max(0, $this->config->get('max_entries', 20)-0);
+		$new_count = 0;
 		foreach ($tweets as $t)
-			$this->generateEntry($t);
-		foreach ($this->entries as $e)
-			$feed->appendChild($e);
+			if ($new_count < $max_entries)
+				$new_count += $this->generateEntry($t) ? 1 : 0;
+			else break;
+		$keep_old = $max_entries - $new_count;
+		$this->log("Saving $new_count new + $keep_old previous tweets");
+		if ($keep_old > 0)
+			foreach ($this->entries as $e)
+				if ($keep_old--)
+					$feed->appendChild($e);
+				else break;
 		$this->atom->formatOutput = TRUE;
 		return $this->atom->saveXML($feed);
 	}
@@ -283,15 +292,13 @@ class TwitterFeed extends Cachable {
 			$oldurl = '';
 			if (file_exists($url_file))
 				$oldurl = trim(@file_get_contents($url_file));
-			if ($url != $oldurl) {
-				$f = @fopen($url_file, 'xb');
-				if ($f) {
+			if ($url != $oldurl)
+				if (($f = @fopen($url_file, 'xb'))) {
 					$url = "$url\n";
 					fwrite($f, $url, strlen($url));
 					fclose($f);
 					@rename($url_file_w, $url_file) || @unlink($url_file_w);
 				}
-			}
 		}
 	}
 
