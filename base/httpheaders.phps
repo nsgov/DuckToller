@@ -24,7 +24,7 @@ class HttpHeaders {
 	function status($set=null) {
 		if (isset(self::$CODE[$set]))
 			$this->status_code = $set;
-		return $status;
+		return $this->status_code;
 	}
 
 	function set($header, $val) {
