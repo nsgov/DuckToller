@@ -26,6 +26,7 @@ abstract class Cachable {
 	}
 
 	function init() {
+		$this->log = new Log($this->toller, $this->loglabel, $this->toller->log);
 		$path = $this->config->getCachePath() . DIRECTORY_SEPARATOR;
 		$this->content_path_w = $path.'.'.$this->content_path_r;
 		$this->content_path_r = $path.$this->content_path_r;
@@ -71,13 +72,13 @@ abstract class Cachable {
 				if ($age > $max_age)
 					$reason = "Cache age > max-age ($age > $max_age)";
 				else
-					$this->log("Cache age <= max-age ($age <= $max_age)");
+					$this->log->info("Cache age <= max-age ($age <= $max_age)");
 			}
 			if ((!$reason) && ($reason = $this->expired($age))===TRUE)
-				$this->log('Cache expired');
+				$this->log->info('Cache expired');
 		}
 		if (is_string($reason))
-			$this->log($reason);
+			$this->log->info($reason);
 		return $reason != FALSE;
 	}
 
@@ -98,14 +99,14 @@ abstract class Cachable {
 					fclose($metafile);
 					$cache = $metafile = null;
 					if (!$fetched) {
-						$this->log('Fetch received no new content');
+						$this->log->info('Fetch received no new content');
 						@touch($this->meta_path_r);
 					} elseif (!@rename($this->meta_path_w, $this->meta_path_r)) {
 						@touch($this->meta_path_r);
 						throw new Exception('rename metadata failed in Cachable::toll');
 					} elseif (@rename($this->content_path_w, $this->content_path_r)) {
 						clearstatcache();
-						$this->log('Wrote '.$bytes.' bytes to cache');
+						$this->log->debug('Wrote '.$bytes.' bytes to cache');
 					} else
 						throw new Exception('rename content failed in Cachable::toll');
 					if (!$fetched) {
@@ -124,7 +125,7 @@ abstract class Cachable {
 					$this->log($ex->getMessage());
 				}
 			} else
-				$this->log('Cache write in progress by another process.'.$this->content_path_w);
+				$this->log->info('Cache write in progress by another process.');
 		}
 		if (!$this->last_modified)
 			$this->last_modified = @filemtime($this->content_path_r);
@@ -132,8 +133,8 @@ abstract class Cachable {
 
 	abstract protected function fetch($cache, $meta);  // load content fresh from the source
 
-	protected function log($msg) {
-		$this->toller->bark($this->loglabel . ": " . $msg);
+	function getLogs($level) {
+		return $this->log->getEntries($level);
 	}
 
 	function serveHeaders() {

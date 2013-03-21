@@ -22,7 +22,7 @@ class HttpCachable extends Cachable {
 
 	protected function loadHeaders() {
 		if (!$this->origin_headers->status()) {
-			$this->log('Loading cached http headers');
+			$this->log->debug('Loading cached http headers');
 			$this->origin_headers->loadFile($this->meta_path_r);
 			if (($ct = $this->origin_headers->get('CONTENT-TYPE'))) {
 				$ct = preg_split('/\s*;\s*/', $ct);
@@ -62,7 +62,7 @@ class HttpCachable extends Cachable {
 	}
 
 	protected function fetch($cache, $header_cache) {
-		$this->log('Fetching ' . $this->url);
+		$this->log->info('Fetching ' . $this->url);
 		$curl = curl_init($this->url);
 		$curl_ver = curl_version();
 		$ua = 'DuckToller/'.DuckToller::$version.' (curl '.$curl_ver['version'].')';

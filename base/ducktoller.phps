@@ -10,6 +10,7 @@ define("DUCKTOLLER_PATH", dirname(__DIR__).'/');
 
 require_once(DUCKTOLLER_PATH.'base/config.phps');
 require_once(DUCKTOLLER_PATH.'base/cachable.phps');
+require_once(DUCKTOLLER_PATH.'base/log.phps');
 
 class DuckToller {
 	public static $version = "0.2";
@@ -17,7 +18,8 @@ class DuckToller {
 
 	function __construct($config_ini) {
 		$this->config = Config::load($config_ini, 'DuckToller');
-		$this->log = array('DuckToller (' . self::$version . ')');
+		$this->log = new Log($this, 'DuckToller');
+		$this->log->info(self::$version);
 		$timezone = $this->config->get('timezone', 'UTC');
 		date_default_timezone_set($timezone);
 		$this->timezone = new DateTimeZone($timezone);
@@ -36,7 +38,7 @@ class DuckToller {
 				$showcontent = false;
 			}
 		} catch (Exception $ex) {
-			$this->bark('Checking If-Modified-Since: '.$ex->getMessage());
+			$this->log->warn('Checking If-Modified-Since: '.$ex->getMessage());
 		}
 		if (headers_sent()) {  # something bad happened
 			echo "<pre>Log:\n";
@@ -44,15 +46,10 @@ class DuckToller {
 			echo "</pre>";
 		} else {
 			$duck->serveHeaders();
-			header('X-DuckToller-Log: *'.implode("\n * ", $this->log));
+			header('X-DuckToller-Log: '.implode(",\n * ", $duck->getLogs(Log::$INFO)));
 			if ($showcontent)
 				$duck->serveContent();
 		}
-	}
-
-	function bark($msg) {
-		$this->log[] = $msg;
-		error_log($msg);
 	}
 
 	/**

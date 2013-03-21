@@ -74,7 +74,7 @@ class TwitterFeed extends Cachable {
 		$since_id = $this->getMaxId();
 		if ($since_id)
 			$this->params['since_id'] = $since_id;
-		$this->log('Fetching tweets from twitter' . ($since_id?" (since $since_id)":''));
+		$this->log->info('Fetching tweets from twitter' . ($since_id?" (since $since_id)":''));
 		$keys = $this->getTwitterAPIKeys();
 		$start = time();
 		$toa = new TwitterOAuth($keys['CONSUMER_KEY'],
@@ -94,7 +94,7 @@ class TwitterFeed extends Cachable {
 		if (isset($tweets->statuses))
 			$tweets = $tweets->statuses;
 		$n = count($tweets);
-		$this->log('Received '.$n.' new tweet'.($n==1?'':'s'));
+		$this->log->debug('Received '.$n.' new tweet'.($n==1?'':'s'));
 		$content = null;
 		if ($n > 0) {
 			$avatar_config = $this->toller->config->section('TwitterAvatar');
@@ -121,7 +121,7 @@ class TwitterFeed extends Cachable {
 			return;
 		$feed = $this->atom->documentElement;
 		$tags = $feed->getElementsByTagNameNS(self::$XMLNS['atom'], 'entry');
-		$this->log('Found ' . $tags->length . ' tweets in cache');
+		$this->log->debug('Found ' . $tags->length . ' tweets in cache');
 		for ($i = $tags->length; $i--;)
 			$this->entries[] = $feed->removeChild($tags->item(0));
 	}
@@ -139,7 +139,7 @@ class TwitterFeed extends Cachable {
 	}
 
 	protected function generateFeed($tweets) {
-		$this->log('Generating Atom Feed');
+		$this->log->info('Generating Atom Feed');
 		$id = htmlspecialchars('http://'.$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI']);
 		switch ($this->feedmode[0]) {
 		case 'user': $title = $tweets[0]->user->name . ' @' . $tweets[0]->user->screen_name . ' Tweets'; break;
@@ -165,7 +165,7 @@ class TwitterFeed extends Cachable {
 				$new_count += $this->generateEntry($t) ? 1 : 0;
 			else break;
 		$keep_old = $max_entries - $new_count;
-		$this->log("Saving $new_count new + $keep_old previous tweets");
+		$this->log->info("Saving $new_count new + $keep_old previous tweets");
 		if ($keep_old > 0)
 			foreach ($this->entries as $e)
 				if ($keep_old--)
