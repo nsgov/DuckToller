@@ -38,6 +38,11 @@ class Config {
 		return $val;
 	}
 
+	function getPath($key, $basename=null) {
+		$p = realpath($this->path_root.DIRECTORY_SEPARATOR.$this->get($key, '.'));
+		return ($basename!==null) ? $p.DIRECTORY_SEPARATOR.$basename : $p;
+	}
+
 	function getCachePath($basename=null) {
 		$root = $this->path_root;
 		$parts = array();
@@ -60,6 +65,6 @@ class Config {
 			}
 		}
 		$path = realpath($root.'/'.implode('/', $parts));
-		return $basename ? $path.DIRECTORY_SEPARATOR.$basename : $path;
+		return ($basename!==null) ? $path.DIRECTORY_SEPARATOR.$basename : $path;
 	}
 }
