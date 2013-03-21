@@ -63,7 +63,7 @@ abstract class Cachable {
 	function shouldRevalidate() {
 		$reason = FALSE;
 		if (!file_exists($this->content_path_r))
-			$reason = 'Cache file does not exist.'.$this->content_path_r;
+			$reason = 'Cache file does not exist.';
 		elseif (!file_exists($this->meta_path_r))
 			$reason = 'Cache meta data missing';
 		else {

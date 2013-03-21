@@ -46,7 +46,7 @@ class DuckToller {
 			echo "</pre>";
 		} else {
 			$duck->serveHeaders();
-			header('X-DuckToller-Log: '.implode(",\n * ", $duck->getLogs(Log::$INFO)));
+			header('X-DuckToller-Log: '.implode(",\n ", $duck->getLogs(Log::$INFO)));
 			if ($showcontent)
 				$duck->serveContent();
 		}
