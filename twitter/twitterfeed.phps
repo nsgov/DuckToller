@@ -13,7 +13,7 @@
  * entry with the tweet data also marked up as XHTML in the Atom content tag.
  * The cache is saved as an Atom feed.
  */
-class TweetCache extends Cachable {
+class TwitterFeed extends Cachable {
 	protected $atom, $entries, $feedmode, $params;
 	protected $avatar_base_url, $avatar_path, $avatar_urls;
 	protected static $modes = array(
