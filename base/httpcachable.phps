@@ -8,8 +8,7 @@
 require_once(__DIR__.'/httpheaders.phps');
 
 class HttpCachable extends Cachable {
-	protected $url, $origin_headers, $static_url;
-	protected static $ORIGIN_URL_HEADER = 'X-DuckToller-Origin-URL';
+	protected $url, $origin_headers;
 	protected static $config_id = 'HTTP';
 
 	public function __construct(DuckToller $toller, $url, $basename, $ext='.data', $meta_ext='.http') {
@@ -17,7 +16,6 @@ class HttpCachable extends Cachable {
 		$this->config = $this->config->section('HTTP');
 		$this->url = $url;
 		$this->origin_headers = new HttpHeaders();
-		$static_url = TRUE;
 	}
 
 	protected function loadHeaders() {
@@ -46,9 +44,7 @@ class HttpCachable extends Cachable {
 	function expired($age) {
 		$expired = FALSE;
 		$this->loadHeaders();
-		if (!$static_url && ($this->url != $this->origin_headers->get(self::$ORIGIN_URL_HEADER)))
-			$expired = 'URL has changed';
-		else try {
+		try {
 			$expires = $this->origin_headers->get('Expires');
 			if ($expires) {
 				$dt = new DateTime($expires);
@@ -83,10 +79,7 @@ class HttpCachable extends Cachable {
 			$curl_err = 'curl error #'.curl_errno($curl) . ': '. curl_error($curl);
 		$lastmod = curl_getinfo($curl, CURLINFO_FILETIME);
 		curl_close($curl);
-		if ($success) {
-			$url = self::$ORIGIN_URL_HEADER . ': ' . $this->url . "\n\n";
-			fwrite($header_cache, $url, strlen($url));
-		} else
+		if (!$success)
 			throw new Exception($curl_err);
 		$this->last_modified = $lastmod;
 		return $success;
@@ -94,9 +87,7 @@ class HttpCachable extends Cachable {
 
 	function serveHeaders() {
 		$this->loadHeaders();
-		$age = $this->age();
-		if ($age)
-			header("Age: $age");
+		header('Age: ' . $this->age());
 		parent::serveHeaders();
 	}
 }
