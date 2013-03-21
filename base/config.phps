@@ -15,7 +15,7 @@ class Config {
 	}
 
 	static function load($ini_file_path, $section_id) {
-		$path_root = dirname($ini_file_path);
+		$path_root = realpath(dirname($ini_file_path));
 		$data = new ArrayObject(parse_ini_file($ini_file_path, TRUE));
 		return new self($data, array($section_id), $path_root);
 	}
@@ -39,8 +39,13 @@ class Config {
 	}
 
 	function getPath($key, $basename=null) {
-		$p = realpath($this->path_root.DIRECTORY_SEPARATOR.$this->get($key, '.'));
-		return ($basename!==null) ? $p.DIRECTORY_SEPARATOR.$basename : $p;
+		if (($p=$this->get($key, null))) {
+			if ($p{0}!=DIRECTORY_SEPARATOR)
+				$p = $this->path_root . DIRECTORY_SEPARATOR . $p;
+			if ($basename!==null)
+				$p .= DIRECTORY_SEPARATOR.$basename;
+		}
+		return $p;
 	}
 
 	function getCachePath($basename=null) {
