@@ -40,7 +40,8 @@ class TweetCache extends Cachable {
 			throw new Exception('Invalid ' . $this->feedmode[2] . ' value for tweet request');
 		$basename = $this->feedmode[0].'-'.(preg_match('/^\w{1,31}$/', $feedparam) ?
 		                                    strtolower($feedparam) : md5($feedparam));
-		parent::__construct($toller, 'TwitterFeed', $basename, '.atom', '.json');
+		parent::__construct($toller, $basename, '.atom', '.json');
+		$this->config = $this->config->section('TwitterFeed');
 		$this->loglabel = "TwitterFeed[$feedstring]";
 		if ($feedchar=='#')
 			$feedparam = '#'.$feedparam;

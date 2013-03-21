@@ -26,6 +26,7 @@ class DuckToller {
 	function retrieve(Cachable $duck) {
 		$method = isset($_SERVER['REQUEST_METHOD']) ? $_SERVER['REQUEST_METHOD'] : 'GET';
 		$showcontent = ($method == 'GET');
+		$duck->init();
 		$duck->toll();
 		if (isset($_SERVER['HTTP_IF_MODIFIED_SINCE'])) try {
 			$lm = $duck->lastModified() - 0;
@@ -42,9 +43,8 @@ class DuckToller {
 			print_r($this->log);
 			echo "</pre>";
 		} else {
-			foreach ($this->log as $log)
-				header('X-DuckToller-Log: '.$log, FALSE);
 			$duck->serveHeaders();
+			header('X-DuckToller-Log: *'.implode("\n * ", $this->log));
 			if ($showcontent)
 				$duck->serveContent();
 		}

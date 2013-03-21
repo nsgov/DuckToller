@@ -17,16 +17,20 @@ abstract class Cachable {
 	protected $content_path_r, $content_path_w, $meta_path_r, $meta_path_w;
 	public static $DATE_HTTP = 'D, d M Y H:i:s \G\M\T';
 
-	function __construct($toller, $config_id, $basename, $ext='.data', $meta_ext='.meta') {
-		$s = DIRECTORY_SEPARATOR;
+	function __construct(DuckToller $toller, $basename, $ext='.data', $meta_ext='.meta') {
 		$this->toller = $toller;
-		$this->config = $toller->config->section($config_id);
+		$this->config = $toller->config;
+		$this->loglabel = $basename;
+		$this->content_path_r = $basename.$ext;
+		$this->meta_path_r = $basename.$meta_ext;
+	}
+
+	function init() {
 		$path = $this->config->getCachePath() . DIRECTORY_SEPARATOR;
-		$this->content_path_r = $path.$basename.$ext;
-		$this->content_path_w = $path.'.'.$basename.$ext;
-		$this->meta_path_r    = $path.$basename.$meta_ext;
-		$this->meta_path_w    = $path.'.'.$basename.$meta_ext;
-		$this->loglabel = "$config_id[$filename]";
+		$this->content_path_w = $path.'.'.$this->content_path_r;
+		$this->content_path_r = $path.$this->content_path_r;
+		$this->meta_path_w = $path.'.'.$this->meta_path_r;
+		$this->meta_path_r = $path.$this->meta_path_r;
 		$this->cache_control = new CacheControl($this->config->get('cache_control'));
 	}
 
@@ -46,26 +50,24 @@ abstract class Cachable {
 		return $mtime ? time() - $mtime : 0;
 	}
 
-	function getCacheControl() {
-		if (!$this->cache_control)
-			$this->cache_control = new CacheControl();
-		return $this->cache_control;
-	}
-
 	function expired($age) {
 		return $age > 86400;
+	}
+
+	function getMaxAge($fallback) {
+		$cc = $this->cache_control;
+		return $cc ? $cc->get('s-maxage', $cc->get('max-age', $fallback)) : $fallback;
 	}
 
 	function shouldRevalidate() {
 		$reason = FALSE;
 		if (!file_exists($this->content_path_r))
-			$reason = 'Cache file does not exist';
+			$reason = 'Cache file does not exist.'.$this->content_path_r;
 		elseif (!file_exists($this->meta_path_r))
 			$reason = 'Cache meta data missing';
 		else {
 			$age = $this->age();
-			$cc = $this->getCacheControl();
-			if (($max_age = $cc->get('s-maxage', $cc->get('max-age', -1))) > -1) {
+			if (($max_age = $this->getMaxAge(-1)) > -1) {
 				if ($age > $max_age)
 					$reason = "Cache age > max-age ($age > $max_age)";
 				else
@@ -122,8 +124,10 @@ abstract class Cachable {
 					$this->log($ex->getMessage());
 				}
 			} else
-				$this->log('Cache write in progress by another process');
+				$this->log('Cache write in progress by another process.'.$this->content_path_w);
 		}
+		if (!$this->last_modified)
+			$this->last_modified = @filemtime($this->content_path_r);
 	}
 
 	abstract protected function fetch($cache, $meta);  // load content fresh from the source

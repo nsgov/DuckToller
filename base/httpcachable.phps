@@ -5,63 +5,55 @@
  * @copyright © 2013, Province of Nova Scotia
  */
 
+require_once(__DIR__.'/httpheaders.phps');
+
 class HttpCachable extends Cachable {
-	protected $url, $headers, $origin_cache_control, $static_url;
+	protected $url, $origin_headers, $static_url;
 	protected static $ORIGIN_URL_HEADER = 'X-DuckToller-Origin-URL';
+	protected static $config_id = 'HTTP';
 
 	public function __construct(DuckToller $toller, $url, $basename, $ext='.data', $meta_ext='.http') {
-		parent::__construct($toller, 'HTTP', $basename, $ext, $meta_ext);
+		parent::__construct($toller, $basename, $ext, $meta_ext);
+		$this->config = $this->config->section('HTTP');
 		$this->url = $url;
-		$this->headers = $this->origin_cache_control = null;
+		$this->origin_headers = new HttpHeaders();
 		$static_url = TRUE;
 	}
 
 	protected function loadHeaders() {
-		if (!$this->headers) {
-			$lines = @file($this->meta_path_r);
-			$this->headers = array();
-			if ($lines) {
-				$this->log('Loading cached http headers');
-				foreach ($lines as $line) {
-					$m = array();
-					if (preg_match('/^([-\w]+):\s*(.+)\s*$/', $line, $m))
-						$this->headers[strtoupper($m[1])] = $m[2];
-				}
-			}
-			$ct = $this->getHeader('CONTENT-TYPE');
-			if ($ct) {
+		if (!$this->origin_headers->status()) {
+			$this->log('Loading cached http headers');
+			$this->origin_headers->loadFile($this->meta_path_r);
+			if (($ct = $this->origin_headers->get('CONTENT-TYPE'))) {
 				$ct = preg_split('/\s*;\s*/', $ct);
 				$this->mimetype = $ct[0];
 			}
 		}
 	}
 
-	public function getHeader($key, $fallback=null) {
-		$key = strtoupper($key);
-		return isset($this->headers[$key]) ? $this->headers[$key] : $fallback;
-	}
-
-	function getCacheControl() {
-		if (!$this->origin_cache_control) {
-			$this->loadHeaders();
-			$this->origin_cache_control = new CacheControl($this->getHeader('Cache-Control'));
-			if ($this->static_url)
-				$this->cache_control = $this->origin_cache_control;
+	function getMaxAge($fallback) {
+		$maxage = parent::getMaxAge(-1);
+		$cc = $this->cache_control;
+		$this->loadHeaders();
+		if (($origin_cc = $this->origin_headers->get('Cache-Control'))) {
+			$this->cache_control = new CacheControl($origin_cc);
+			$maxage = max($maxage, parent::getMaxAge(-1));
+			$this->cache_control = $cc;
 		}
-		return $this->cache_control;
+		return ($maxage > -1) ? $maxage : $fallback;
 	}
 
-	function expired() {
+	function expired($age) {
 		$expired = FALSE;
 		$this->loadHeaders();
-		if (!$static_url && ($this->url != $this->getHeader(self::$ORIGIN_URL_HEADER)))
+		if (!$static_url && ($this->url != $this->origin_headers->get(self::$ORIGIN_URL_HEADER)))
 			$expired = 'URL has changed';
 		else try {
-			$expires = $this->getHeader('Expires');
+			$expires = $this->origin_headers->get('Expires');
 			if ($expires) {
 				$dt = new DateTime($expires);
 				if ($dt->getTimestamp() < time())
-					$expired = $expires;
+					$expired = "Expired: $expires";
 			}
 		} catch(Exception $ex) {
 			$expired = 'Expires header: ' . $ex->getMessage();
@@ -101,6 +93,7 @@ class HttpCachable extends Cachable {
 	}
 
 	function serveHeaders() {
+		$this->loadHeaders();
 		$age = $this->age();
 		if ($age)
 			header("Age: $age");
