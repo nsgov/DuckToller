@@ -1,5 +1,5 @@
 FETCH:=../lib/fetch.sh
-FILES:=everything-spritev2.png
+FILES:=bird_blue_16.png everything-spritev2.png
 CACHE:=../cache/twitter
 FEED_CACHE:=$(CACHE)/feed
 AVATAR_CACHE:=$(CACHE)/avatar
@@ -7,8 +7,11 @@ AVATAR_CACHE:=$(CACHE)/avatar
 
 twitter: $(FILES) $(FEED_CACHE) $(AVATAR_CACHE)
 
-%.png:
+everything-spritev2.png:
 	sh $(FETCH) . https://si0.twimg.com/images/dev/cms/intents/icons/sprites/$@
+
+bird_blue_16.png:
+	sh $(FETCH) . https://dev.twitter.com/sites/default/files/images_documentation/$@
 
 $(CACHE):
 	[ -d "$@" ] || mkdir "$@"
