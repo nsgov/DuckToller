@@ -122,7 +122,7 @@ abstract class Cachable {
 					if ($metafile) fclose($metafile);
 					@unlink($this->content_path_w);
 					@unlink($this->meta_path_w);
-					$this->log($ex->getMessage());
+					$this->log->warn($ex->getMessage());
 				}
 			} elseif (is_writable($this->content_path_w))
 				$this->log->info('Cache write in progress by another process');
