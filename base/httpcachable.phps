@@ -65,7 +65,8 @@ class HttpCachable extends Cachable {
 		curl_setopt_array($curl, array(
 			CURLOPT_CONNECTTIMEOUT => $this->config->get('connection_timeout', 9),
 			CURLOPT_FAILONERROR => TRUE,
-			CURLOPT_FILE => $cache,
+			//CURLOPT_FILE => $cache, # fails with PHP < 5.3.4 + fopen(..., 'x')
+			  CURLOPT_RETURNTRANSFER => TRUE, # so do this instead. probably less efficient.
 			CURLOPT_FILETIME => TRUE,
 			CURLOPT_FOLLOWLOCATION => TRUE,
 			CURLOPT_MAXREDIRS => $this->config->get('max_redirects', 9),
@@ -75,11 +76,11 @@ class HttpCachable extends Cachable {
 			CURLOPT_WRITEHEADER => $header_cache
 		));
 		$curl_err = '';
-		if (!($success = curl_exec($curl)))
+		if (($success = curl_exec($curl))===FALSE)
 			$curl_err = 'curl error #'.curl_errno($curl) . ': '. curl_error($curl);
 		$lastmod = curl_getinfo($curl, CURLINFO_FILETIME);
 		curl_close($curl);
-		if (!$success)
+		if ($curl_err)
 			throw new Exception($curl_err);
 		$this->last_modified = $lastmod;
 		return $success;
