@@ -140,9 +140,9 @@ class TwitterFeed extends Cachable {
 
 	protected function generateFeed($tweets) {
 		$this->log->info('Generating Atom Feed');
-		$id = htmlspecialchars('http://'.$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI']);
+		$id = 'http://'.$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI'];
 		switch ($this->feedmode[0]) {
-		case 'user': $title = $tweets[0]->user->name . ' @' . $tweets[0]->user->screen_name . ' Tweets'; break;
+		case 'user': $title = '@' . $tweets[0]->user->screen_name . ' Tweets'; break;
 		case 'hashtag': $title = '#' . $this->params['q']; break;
 		default: $title = 'Tweets';
 		}
@@ -178,6 +178,7 @@ class TwitterFeed extends Cachable {
 	protected function generateEntry($tweet) {
 		$entry = $this->appendAtomTag($this->atom->documentElement, 'entry');
 		$retweeted_by = '';
+		$real_id = $tweet->id_str;
 		$title = $tweet->user->screen_name . ': ' . $tweet->text;
 		$updated = $published = new DateTime($tweet->created_at, $this->toller->timezone);
 		if (isset($tweet->retweeted_status)) {
@@ -191,7 +192,7 @@ class TwitterFeed extends Cachable {
 		$id = $tweet->id_str;
 		$username = $tweet->user->screen_name;
 		$author_url = 'https://twitter.com/'.$username;
-		$tweet_url = "$author_url/status/$id";
+		$tweet_url = "$author_url/status/$real_id";
 		$this->appendAtomTag($entry, 'id', null, $tweet_url);
 		$this->appendAtomTag($entry, 'link', array('rel'=>'alternate', 'type'=>'text/html', 'href'=>$tweet_url));
 		$this->appendAtomTag($entry, 'title', null, $title);
