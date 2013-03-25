@@ -71,11 +71,14 @@ DuckToller.TwitterFeed.Feeder.prototype = {
 			total = Math.min(total, this.max);
 		for (var i = 0; i < total; i++) {
 			var content = entrylist[i].getElementsByTagNameNS(xmlns, 'content');
-			html[i] = content.length ? content[0].lastChild.nodeValue : '-';
+			html[i] = content.length ? String(content[0].lastChild.nodeValue) : '-';
 		}
 		entrylist = null;
 		for (var i=this.tags.length, t; i && (t=this.tags[--i]); ) {
-			t.tag.innerHTML = html.join('');
+			if ((t.params.max > 0) && (t.params.max < total))
+				t.tag.innerHTML = html.slice(0, t.params.max).join('');
+			else
+				t.tag.innerHTML = html.join('');
 		}
 		this.done();
 	},
