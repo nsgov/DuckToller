@@ -62,7 +62,7 @@ class HttpHeaders {
 			throw new Exception('Invalid HTTP response');
 		$this->http_version = $status[0];
 		$this->status_code = $status[1]-0;
-		$this->status_msg = $status[3];
+		$this->status_msg = $status[2];
 		$l = 2;
 		for ($key = $val = ''; ($line=rtrim(fgets($handle))) && strlen($line); $l++) {
 			if (strpos(" \t", $line{0})!==FALSE)
