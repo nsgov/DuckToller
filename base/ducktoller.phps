@@ -28,6 +28,7 @@ class DuckToller {
 	function retrieve(Cachable $duck) {
 		$method = isset($_SERVER['REQUEST_METHOD']) ? $_SERVER['REQUEST_METHOD'] : 'GET';
 		$showcontent = ($method == 'GET');
+		$this->checkOrigin();
 		$duck->init();
 		$duck->toll();
 		if (isset($_SERVER['HTTP_IF_MODIFIED_SINCE'])) try {
@@ -57,30 +58,28 @@ class DuckToller {
 	 * @throws Exception when allow-origin setting doesn't match origin/referrer.
 	 */
 	function checkOrigin() {
-		$allow = false;
-		$allowable = strtolower(trim($this->config->get('allow-origin')));
+		$allow = $origin = false;
+		$allowable = strtolower(trim($this->config->get('allow_origin')));
 		if ($allowable == '*')
-			$allow = $origin = '*';
+			$allow = '*';
 		else {
 			if (isset($_SERVER['HTTP_ORIGIN']))
 				$origin = parse_url($_SERVER['HTTP_ORIGIN']);
-			else
-				$origin = parse_url($_SERVER['HTTP_REFERER']);
 			if (isset($origin['host'])) {
-				$origin = $origin['host'];
-				foreach (explode(' ', $allowable) as $a) {
-					if (fnmatch($a, $origin)) {
-						$allow = $origin;
+				$host = $origin['host'];
+				foreach (explode(' ', $allowable) as $a)
+					if (fnmatch($a, $host)) {
+						$allow = $origin['scheme'] . '://' . $host;
 						break;
 					}
-				}
-			}
+			} else
+				$this->log->debug('No origin host specified');
 		}
 		if ($allow)
-			header('Access-Control-Allow-Origin: ' . $origin);
-		#else {
-		#	header('Status: 403 Forbidden', true, 403);
-		#	throw new Exception('DuckToller::checkOrigin denied access.');
-		#}
+			header('Access-Control-Allow-Origin: ' . $allow);
+		elseif ($origin) {
+			header('HTTP/1.1 403 Forbidden', true, 403);
+			throw new Exception('allow_origin: access denied.');
+		}
 	}
 }
