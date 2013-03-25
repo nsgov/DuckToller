@@ -124,8 +124,10 @@ abstract class Cachable {
 					@unlink($this->meta_path_w);
 					$this->log($ex->getMessage());
 				}
-			} else
-				$this->log->info('Cache write in progress by another process.');
+			} elseif (is_writable($this->content_path_w))
+				$this->log->info('Cache write in progress by another process');
+			else
+				$this->log->error('Unable to create cache file');
 		}
 		if (!$this->last_modified)
 			$this->last_modified = @filemtime($this->content_path_r);
