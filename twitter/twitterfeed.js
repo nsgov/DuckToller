@@ -67,6 +67,13 @@ DuckToller.TwitterFeed.Feeder.prototype = {
 		var xmlns = 'http://www.w3.org/2005/Atom';
 		var entrylist = atom.getElementsByTagNameNS(xmlns, 'entry'), html = [];
 		var total = entrylist.length;
+		var title = atom.getElementsByTagNameNS(xmlns, 'title')[0].lastChild.nodeValue;
+		console.log(title);
+		var header = '<div class="twitterfeed">' +
+		             '<div class="twitterfeed-header">' +
+		             '<strong class="twitterfeed-title"></strong>' +
+		             '</div>';
+		var footer = '</div>';
 		if (this.max)
 			total = Math.min(total, this.max);
 		for (var i = 0; i < total; i++) {
@@ -76,9 +83,10 @@ DuckToller.TwitterFeed.Feeder.prototype = {
 		entrylist = null;
 		for (var i=this.tags.length, t; i && (t=this.tags[--i]); ) {
 			if ((t.params.max > 0) && (t.params.max < total))
-				t.tag.innerHTML = html.slice(0, t.params.max).join('');
+				t.tag.innerHTML = header + html.slice(0, t.params.max).join('') + footer;
 			else
-				t.tag.innerHTML = html.join('');
+				t.tag.innerHTML = header + html.join('') + footer;
+			t.tag.querySelector('.twitterfeed-title').appendChild(document.createTextNode(title));
 		}
 		this.done();
 	},
