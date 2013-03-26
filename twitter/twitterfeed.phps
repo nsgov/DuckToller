@@ -188,21 +188,22 @@ class TwitterFeed extends Cachable {
 	protected function generateEntry($tweet) {
 		$entry = $this->appendAtomTag($this->atom->documentElement, 'entry');
 		$retweeted_by = '';
-		$real_id = $tweet->id_str;
 		$title = $tweet->user->screen_name . ': ' . $tweet->text;
-		$updated = $published = new DateTime($tweet->created_at, $this->toller->timezone);
+		$updated = $published = new DateTime($tweet->created_at);
+		$updated->setTimezone($this->toller->timezone);
+		$tweet_url = 'https://twitter.com/'.$tweet->user->screen_name.'/status/'.$tweet->id_str;
 		if (isset($tweet->retweeted_status)) {
 			$retweeted_by = '<p class="retweetedby"><i class="tweet-icon"> </i> Retweeted by '.
 			                '<a href="https://twitter.com/'.
 							htmlspecialchars($tweet->user->screen_name).'">'.
 			                $tweet->user->name.'</a></p>';
 			$tweet = $tweet->retweeted_status;
-			$published = new DateTime($tweet->created_at, $this->toller->timezone);
+			$published = new DateTime($tweet->created_at);
+			$published->setTimezone($this->toller->timezone);
 		}
 		$id = $tweet->id_str;
 		$username = $tweet->user->screen_name;
 		$author_url = 'https://twitter.com/'.$username;
-		$tweet_url = "$author_url/status/$real_id";
 		$this->appendAtomTag($entry, 'id', null, $tweet_url);
 		$this->appendAtomTag($entry, 'link', array('rel'=>'alternate', 'type'=>'text/html', 'href'=>$tweet_url));
 		$this->appendAtomTag($entry, 'title', null, $title);
@@ -243,13 +244,13 @@ class TwitterFeed extends Cachable {
 		$intent = 'https://twitter.com/intent/';
 		$html =
 			'<div class="tweet">'.
+			'<a href="'.$tweet_url.'" class="tweet-time" title="'.$updated->format('D M jS Y \@ g:ia T').'">'.
+			'<time datetime="'.$updated->format(DateTime::W3C).'">'.$updated->format('M d').'</time>'.
+			'</a> '.
 			'<a href="'.$author_url.'" class="tweeter">'.
 			'<img src="'.$imgsrc.'" alt="" class="tweeter-avatar" />'.
 			'<span class="tweeter-name">'.htmlspecialchars($tweet->user->name).'</span> '.
 			'<span class="tweeter-screenname">@'.htmlspecialchars($tweet->user->screen_name).'</span>'.
-			'</a> '.
-			'<a href="'.$tweet_url.'" class="tweet-time" title="'.$tweet->created_at.'">'.
-			'<time datetime="'.$updated->format(DateTime::W3C).'">'.$updated->format('M d').'</time>'.
 			'</a> '.
 			'<blockquote class="tweet-text" cite="'.$tweet_url.'">'.$text.'</blockquote> '.
 			$retweeted_by.
