@@ -89,6 +89,7 @@ DuckToller.TwitterFeed.Feeder.prototype = {
 			html[i] = content.length ? String(content[0].lastChild.nodeValue) : '-';
 		}
 		entrylist = null;
+		var now = new Date();
 		for (var i=this.tags.length, t, a; i && (t=this.tags[--i]); ) {
 			if ((t.params.max > 0) && (t.params.max < total))
 				t.tag.innerHTML = header + html.slice(0, t.params.max).join('') + footer;
@@ -97,6 +98,15 @@ DuckToller.TwitterFeed.Feeder.prototype = {
 			if ((a = t.tag.querySelector('.twitterfeed-title'))) {
 				if (link) a.setAttribute("href", link);
 				a.appendChild(document.createTextNode(title));
+			}
+			for (var times=t.tag.querySelectorAll('time'), j=times.length, timetag; j-- && (timetag=times[j]);) {
+				var d = new Date(timetag.getAttribute("datetime"));
+				if (now.toDateString()==d.toDateString()) { // today
+					var h = d.getHours(), ampm = (h > 11) ? 'pm' : 'am';
+					var m = d.getMinutes(); if (m < 10) m = '0'+m;
+					h %= 12;
+					timetag.innerHTML = (h?h:12) + ':' + m + ampm;
+				}
 			}
 		}
 		this.done();
