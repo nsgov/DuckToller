@@ -188,10 +188,11 @@ class TwitterFeed extends Cachable {
 	protected function generateEntry($tweet) {
 		$entry = $this->appendAtomTag($this->atom->documentElement, 'entry');
 		$retweeted_by = '';
+		$id = $tweet->id_str;
 		$title = $tweet->user->screen_name . ': ' . $tweet->text;
 		$updated = $published = new DateTime($tweet->created_at);
 		$updated->setTimezone($this->toller->timezone);
-		$tweet_url = 'https://twitter.com/'.$tweet->user->screen_name.'/status/'.$tweet->id_str;
+		$tweet_url = 'https://twitter.com/'.$tweet->user->screen_name."/status/$id";
 		if (isset($tweet->retweeted_status)) {
 			$retweeted_by = '<p class="retweetedby"><i class="tweet-icon"> </i> Retweeted by '.
 			                '<a href="https://twitter.com/'.
@@ -201,7 +202,6 @@ class TwitterFeed extends Cachable {
 			$published = new DateTime($tweet->created_at);
 			$published->setTimezone($this->toller->timezone);
 		}
-		$id = $tweet->id_str;
 		$username = $tweet->user->screen_name;
 		$author_url = 'https://twitter.com/'.$username;
 		$this->appendAtomTag($entry, 'id', null, $tweet_url);
