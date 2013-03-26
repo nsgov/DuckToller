@@ -142,9 +142,17 @@ class TwitterFeed extends Cachable {
 		$this->log->info('Generating Atom Feed');
 		$id = 'http://'.$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI'];
 		switch ($this->feedmode[0]) {
-		case 'user': $title = '@' . $tweets[0]->user->screen_name . ' Tweets'; break;
-		case 'hashtag': $title = '#' . $this->params['q']; break;
-		default: $title = 'Tweets';
+		case 'user':
+			$title = '@' . $tweets[0]->user->screen_name . ' Tweets';
+			$rel_alt = "https://twitter.com/" . $tweets[0]->user->screen_name;
+			break;
+		case 'hashtag':
+			$title = '#' . $this->params['q'];
+			$rel_alt = "https://twitter.com/search/%23" . $this->params['q'];
+			break;
+		default:
+			$title = 'Tweets';
+			$rel_alt = '';
 		}
 		$title = htmlspecialchars($title);
 		$feed = $this->atom->documentElement;
@@ -153,7 +161,9 @@ class TwitterFeed extends Cachable {
 		$feed->appendChild($this->atom->createTextNode("\n"));
 		$this->appendAtomTag($feed, 'id', null, $id);
 		$this->appendAtomTag($feed, 'title', null, $title);
-		$this->appendAtomTag($feed, 'link', array('rel'=>'self', 'type'=>'text/html', 'href'=>$id));
+		$this->appendAtomTag($feed, 'link', array('rel'=>'self', 'type'=>'application/atom+xml', 'href'=>$id));
+		if ($rel_alt)
+			$this->appendAtomTag($feed, 'link', array('rel'=>'alternate', 'type'=>'text/html', 'href'=>$rel_alt));
 		$this->appendAtomTag($feed, 'generator', array('uri'=>'http://github.com/nsgov/ducktoller',
 		                                               'version'=> DuckToller::$version),
 		                     'DuckToller/'.DuckToller::$version);

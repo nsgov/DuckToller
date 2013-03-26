@@ -68,11 +68,19 @@ DuckToller.TwitterFeed.Feeder.prototype = {
 		var entrylist = atom.getElementsByTagNameNS(xmlns, 'entry'), html = [];
 		var total = entrylist.length;
 		var title = atom.getElementsByTagNameNS(xmlns, 'title')[0].lastChild.nodeValue;
-		console.log(title);
+		for (var link = atom.documentElement.firstElementChild; link; link = link.nextElementSibling)
+			if ((link.namespaceURI==xmlns)&&(link.localName=='link')&&(link.getAttribute("type")=="text/html")) {
+				var rel = link.getAttribute("rel");
+				if (!rel || (rel=="alternate")) {
+					link = link.getAttribute("href");
+					break;
+				}
+			}
+		var header_tag = link ? 'a' : 'span';
 		var header = '<div class="twitterfeed">' +
-		             '<div class="twitterfeed-header">' +
-		             '<strong class="twitterfeed-title"></strong>' +
-		             '</div>';
+		             '<div class="twitterfeed-header"><strong>' +
+		             '<'+header_tag+' class="twitterfeed-title"></'+header_tag+'>' +
+		             '</strong></div>';
 		var footer = '</div>';
 		if (this.max)
 			total = Math.min(total, this.max);
@@ -81,12 +89,15 @@ DuckToller.TwitterFeed.Feeder.prototype = {
 			html[i] = content.length ? String(content[0].lastChild.nodeValue) : '-';
 		}
 		entrylist = null;
-		for (var i=this.tags.length, t; i && (t=this.tags[--i]); ) {
+		for (var i=this.tags.length, t, a; i && (t=this.tags[--i]); ) {
 			if ((t.params.max > 0) && (t.params.max < total))
 				t.tag.innerHTML = header + html.slice(0, t.params.max).join('') + footer;
 			else
 				t.tag.innerHTML = header + html.join('') + footer;
-			t.tag.querySelector('.twitterfeed-title').appendChild(document.createTextNode(title));
+			if ((a = t.tag.querySelector('.twitterfeed-title'))) {
+				if (link) a.setAttribute("href", link);
+				a.appendChild(document.createTextNode(title));
+			}
 		}
 		this.done();
 	},
