@@ -215,7 +215,8 @@ class TwitterFeed extends Cachable {
 		$this->appendTwitterTag($author, 'profile_image_url', $imgsrc);
 		$this->appendAtomTag($entry, 'published', null, $published->format(DateTime::ATOM));
 		$this->appendAtomTag($entry, 'updated', null, $updated->format(DateTime::ATOM));
-		$this->appendAtomTag($entry, 'summary', array('type'=>'xhtml'), $tweet->text);
+		$summary = $this->appendAtomTag($entry, 'summary', array('type'=>'xhtml'));
+		$this->appendHtmlTag($summary, 'div', null, $tweet->text);
 		$entity = array();
 		$indices = array();
 		foreach ($tweet->entities->hashtags as $hashtag) {
