@@ -1,10 +1,11 @@
 window.DuckToller || (window.DuckToller={});
 DuckToller.TwitterFeed = {
-	URL: null,
-	canRun: document.querySelectorAll && window.XMLHttpRequest,
+	baseURL: null,
+	feedURL: null,
+	canRun: document.querySelector && window.XMLHttpRequest && (window.XSLTProcessor || window.ActiveXObject),
 	run: function() {
 		var tags = document.querySelectorAll("*[data-twitterfeed]");
-		this.URL || this.getURL();
+		this.feedURL || (this.feedURL = this.getURL("?feed={feed}"));
 		for (var i = tags.length, tag, m; (i--) && (tag = tags[i]);) {
 			var tf = tag.getAttribute("data-twitterfeed").split(';');
 			var params = {};
@@ -13,93 +14,122 @@ DuckToller.TwitterFeed = {
 				if (p) params[p[1]] = p[2];
 			}
 			if ((m = tf[0].match(/^([@#])(\w+)$/))) {
-				var url = this.URL.replace('{feed}', escape(m[0]));
-				if (!(url in this.feeders)) {
-					this.feeders[url] = new DuckToller.TwitterFeed.Feeder(url);
-					this.remaining++;
-				}
-				this.feeders[url].feedTag(tag, params)
+				var feedURL = this.feedURL.replace('{feed}', escape(m[0])),
+				    xsltURL = ('xslt' in params) ? params.xslt : this.getURL('twitterfeed.xslt');
+				params.xslt = this.queue("XSLT", xsltURL);
+				this.queue("Feed", feedURL).feedTag(tag, params);
 			}
 		}
-		for (var f in this.feeders)
-			this.feeders[f].load();
+		this.retrieve("XSLT");
 	},
-	getURL: function() {
-		var t = document.querySelector("script[src$='/twitterfeed.js']");
-		if (t) {
-			var src = t.getAttribute("src");
-			this.URL = src.substring(0, src.lastIndexOf('/')+1) + '?feed={feed}';
+	getURL: function(basename) {
+		if (!this.baseURL) {
+			var t = document.querySelector("script[src$='/twitterfeed.js']");
+			if (t) {
+				var src = t.getAttribute("src");
+				this.baseURL = src.substring(0, src.lastIndexOf('/')+1);
+			}
 		}
+		return basename ? this.baseURL + basename : this.baseURL;
+	},
+	queue: function(id, url) { // queue an xml file to be loaded, if not already in queue
+		var q = this._q[id];
+		if (!(url in q.list)) {
+			q.list[url] = new DuckToller.TwitterFeed[id](url);
+			q.len++;
+			console.log(id + "queue += " + url);
+		}
+		return q.list[url];
+	},
+	_q: {Feed: {len: 0, list: {}}, XSLT: {len: 0, list: {}}},
+	retrieve: function(queueID) {
+		var q = this._q[queueID];
+		for (var url in q.list)
+			this.fetch(url, q);
+	},
+	fetch: function(url, q) { // load an xml file
+		var we = this, it = q.list[url], xdr = url.match(/^https?:/) && window.XDomainRequest,
+		    xr = new (xdr||window.XMLHttpRequest)();
+		xr.open("GET", url);
+		xr.onerror   = function() { we.failed(url, xr.statusText||(xr+" denied")); };
+		xr.onabort   = xr.onerror;
+		xr.ontimeout = function() { we.failed(url, "Connection timeout"); };
+		xr.onload    = function() { it.fetched(xr.responseXML||this.xdrXML(xr)); };
+		xr.onloadend = function() { delete q.list[url]; --q.len || we.retrieved(q); };
+		xr.send();
+	},
+	retrieved: function(q) {
+		if (q == this._q.XSLT)
+			this.retrieve("Feed");
+	},
+	xdrXML: function(xdr) {  // only expected from IE XDomainRequest
+		var x = new ActiveXObject("MSXML2.DOMDocument");
+		x.async = x.validateOnParse = false;
+		x.loadXML(xdr.responseText);
+		return x;
+	},
+	failed: function(url, msg) {
+		window.console && console.log(url + ": " + msg);
 	},
 	fed: function(feeder) {	// let garbage collector reclaim memory after feeds are done
 		delete this.feeders[feeder.url];
 		if (--this.remaining < 1)
 			DuckToller.TwitterFeed = null;
 	},
-	Loader: window.XDomainRequest || window.XMLHttpRequest,	// How to load a feed URL
-	Feeder: function(url) {		// For each feed URL, fetch tweets & put into document
+	XSLT: function(url) {
 		this.url = url;
-		this.tags = [];
-		this.max = 0;
+		this.xp = null;
 	},
-	feeders: [],
-	remaining: 0
+	Feed: function(url) {
+		this.url = url; // For each feed URL in the page, there is...
+		this.tags = [];	// a list of tag(s) in the page calling this feed.
+	}
 };
-DuckToller.TwitterFeed.Feeder.prototype = {
+DuckToller.TwitterFeed.XSLT.prototype = {
+	fetched: function(xsl) {
+		if (window.XSLTProcessor) {
+			this.xp = new XSLTProcessor();
+			this.xp.importStylesheet(xsl);
+		} else if (window.ActiveXObject) {
+			var x = new ActiveXObject("MSXML2.XSLTemplate");
+			var xml = new ActiveXObject("MSXML2.FreeThreadedDOMDocument");
+			xml.loadXML(xsl.xml);
+			x.stylesheet = xml;
+			this.xp = x.createProcessor();
+			this.transform = this.transformIE;
+		} else this.transform = function() {};
+		console.log("Received XSL: " + this.url);
+	},
+	transform: function(atom, tag) {
+		for (var p in tag.params)
+			if (typeof(tag.params[p])=="string")
+				this.xp.setParameter(null, p, tag.params[p]);
+		var t = this.xp.transformToFragment(atom, document);
+		console.log(t);
+		this.xp.clearParameters();
+		tag.element.appendChild(t);
+	},
+	transformIE: function(atom, tag) {
+		for (var p in tag.params)
+			if (typeof(tag.params[p])=="string")
+				this.xp.addParameter(p, tag.params[p]);
+		this.xp.input = atom;
+		this.xp.transform();
+		tag.element.innerHTML = this.xp.output;
+	}
+};
+DuckToller.TwitterFeed.Feed.prototype = {
 	feedTag: function(tag, params) {
 		if (!params.max) params.max = 0;
-		this.max = Math.max(this.max, params.max-0);
-		this.tags.push({tag: tag, params: params});
+		this.tags.push({element: tag, params: params});
 		tag.setAttribute("aria-busy", "true");
 	},
-	load: function() {
-		var it = this, cors = this.cors = new DuckToller.TwitterFeed.Loader();
-		var qs = (this.url.indexOf('?') > -1) ? '&' : '?';
-		if (this.max)
-			qs += 'max=' + this.max;
-		cors.open("GET", this.url+qs);
-		cors.onerror   = function() { it.failed(cors.statusText||"Loading failed. :("); };
-		cors.ontimeout = function() { it.failed("Connection timeout."); };
-		cors.onload    = function() { it.loaded(cors.responseXML); };
-		cors.send();
-	},
-	loaded: function(atom) {
-		var xmlns = 'http://www.w3.org/2005/Atom';
-		var entrylist = atom.getElementsByTagNameNS(xmlns, 'entry'), html = [];
-		var total = entrylist.length;
-		var title = atom.getElementsByTagNameNS(xmlns, 'title')[0].lastChild.nodeValue;
-		for (var link = atom.documentElement.firstElementChild; link; link = link.nextElementSibling)
-			if ((link.namespaceURI==xmlns)&&(link.localName=='link')&&(link.getAttribute("type")=="text/html")) {
-				var rel = link.getAttribute("rel");
-				if (!rel || (rel=="alternate")) {
-					link = link.getAttribute("href");
-					break;
-				}
-			}
-		var header_tag = link ? 'a' : 'span';
-		var header = '<div class="twitterfeed">' +
-		             '<div class="twitterfeed-header"><strong>' +
-		             '<'+header_tag+' class="twitterfeed-title"></'+header_tag+'>' +
-		             '</strong></div>';
-		var footer = '</div>';
-		if (this.max)
-			total = Math.min(total, this.max);
-		for (var i = 0; i < total; i++) {
-			var content = entrylist[i].getElementsByTagNameNS(xmlns, 'content');
-			html[i] = content.length ? String(content[0].lastChild.nodeValue) : '-';
-		}
-		entrylist = null;
+	fetched: function(atom) {
 		var now = new Date();
+		console.log("Received Feed: " + this.url);
 		for (var i=this.tags.length, t, a; i && (t=this.tags[--i]); ) {
-			if ((t.params.max > 0) && (t.params.max < total))
-				t.tag.innerHTML = header + html.slice(0, t.params.max).join('') + footer;
-			else
-				t.tag.innerHTML = header + html.join('') + footer;
-			if ((a = t.tag.querySelector('.twitterfeed-title'))) {
-				if (link) a.setAttribute("href", link);
-				a.appendChild(document.createTextNode(title));
-			}
-			for (var times=t.tag.querySelectorAll('time'), j=times.length, timetag; j-- && (timetag=times[j]);) {
+			t.params.xslt.transform(atom, t);
+			for (var times=t.element.querySelectorAll('time'), j=times.length, timetag; j-- && (timetag=times[j]);) {
 				var d = new Date(timetag.getAttribute("datetime"));
 				if (now.toDateString()==d.toDateString()) { // today
 					var h = d.getHours(), ampm = (h > 11) ? 'pm' : 'am';
@@ -108,18 +138,9 @@ DuckToller.TwitterFeed.Feeder.prototype = {
 					timetag.innerHTML = (h?h:12) + ':' + m + ampm;
 				}
 			}
+			t.element.setAttribute("aria-busy", "false");
 		}
-		this.done();
 	},
-	failed: function(errmsg) {
-		window.console && console.log("DuckToller.TwitterFeed.Feeder["+this.url+"]: " + errmsg);
-		this.done();
-	},
-	done: function() {
-		for (var i=this.tags.length; i--; this.tags[i].tag.setAttribute("aria-busy", "false"));
-		this.url = this.tags = this.cors = null;
-		DuckToller.TwitterFeed.fed(this);
-	}
 };
 
 DuckToller.TwitterFeed.canRun ? DuckToller.TwitterFeed.run() : DuckToller.TwitterFeed = null;
