@@ -238,7 +238,8 @@ class TwitterFeed extends Cachable {
 				'@' . $tweet->in_reply_to_screen_name));
 		}
 		$summary = $this->appendAtomTag($entry, 'summary', array('type'=>'xhtml'));
-		$summary = $this->appendHtmlTag($summary, 'div');
+		$summary_div = $summary->ownerDocument->createElementNS(self::$XMLNS['xhtml'], 'div');
+		$summary = $summary->appendChild($summary_div);
 		$entity = array();
 		$indices = array();
 		foreach ($tweet->entities->hashtags as $hashtag) {
@@ -249,42 +250,24 @@ class TwitterFeed extends Cachable {
 			));
 			$indices[] = $i = $hashtag->indices[0];
 			$indices[] = $hashtag->indices[1];
-			$entity["i$i"] = $this->entityLink('https://twitter.com/search/%23'.$hashtag->text, $term);
+			$entity["i$i"] = array('https://twitter.com/search/%23'.$hashtag->text, $term, '');
 		}
 		foreach ($tweet->entities->urls as $url) {
 			$indices[] = $i = $url->indices[0];
 			$indices[] = $url->indices[1];
 			$d_url = isset($url->display_url)  ? $url->display_url  : $url->url;
-			$x_url = isset($url->expanded_url) ? $url->expanded_url : null;
-			$entity["i$i"] = $this->entityLink($url->url, $d_url, $x_url);
+			$x_url = isset($url->expanded_url) ? $url->expanded_url : '';
+			$entity["i$i"] = array($url->url, $d_url, $x_url);
 		}
 		foreach ($tweet->entities->user_mentions as $user) {
 			$indices[] = $i = $user->indices[0];
 			$indices[] = $user->indices[1];
-			$entity["i$i"] = $this->entityLink('https://twitter.com/'.$user->screen_name, '@'.$user->screen_name, $user->name);
+			$entity["i$i"] = array('https://twitter.com/'.$user->screen_name, '@'.$user->screen_name, $user->name);
 		}
-		$this->linkEntities($summary, $text, $indices, $entity);
+		$summary_div->appendChild($this->atom->createTextNode("\n\t\t\t"));
+		$this->linkEntities($summary_div, $text, $indices, $entity);
+		$summary_div->appendChild($this->atom->createTextNode("\n\t\t"));
 		$intent = 'https://twitter.com/intent/';
-		$html =
-			'<div class="tweet">'.
-			'<a href="'.$tweet_url.'" class="tweet-time" title="'.$updated->format('D M jS Y \@ g:ia T').'">'.
-			'<time datetime="'.$updated->format(DateTime::W3C).'">'.$updated->format('M d').'</time>'.
-			'</a> '.
-			'<a href="'.$author_url.'" class="tweeter">'.
-			'<img src="'.$imgsrc.'" alt="" class="tweeter-avatar" />'.
-			'<span class="tweeter-name">'.htmlspecialchars($tweet->user->name).'</span> '.
-			'<span class="tweeter-screenname">@'.htmlspecialchars($tweet->user->screen_name).'</span>'.
-			'</a> '.
-			'<blockquote class="tweet-text" cite="'.$tweet_url.'">'.$text.'</blockquote> '.
-			$retweeted_by.
-			'<div class="tweet-actions">'.
-			'<a href="'.$intent.'tweet?in_reply_to='.$id.'" class="tweet-action tweet-reply"><i class="tweet-icon"> </i> Reply</a>'.
-			'<a href="'.$intent.'retweet?tweet_id=' .$id.'" class="tweet-action tweet-retweet"><i class="tweet-icon"> </i> Retweet</a>'.
-			'<a href="'.$intent.'favorite?tweet_id='.$id.'" class="tweet-action tweet-fav"><i class="tweet-icon"> </i> Favourite</a> '.
-			'</div>'.
-			'</div>';
-		#$content = $this->appendAtomTag($entry, 'content', array('type'=>'html'), $html);
-		#$this->appendTwitterTag($entry, 'source', $tweet->source);
 		return $entry;
 	}
 
@@ -298,15 +281,22 @@ class TwitterFeed extends Cachable {
 			$indices[] = $len;
 			$last++;
 		}
+		$doc = $parent->ownerDocument;
+		$xhtml = self::$XMLNS['xhtml'];
 		for ($i = 0; $i < $last; $i++) {
 			$idx = $indices[$i];
 			$key = "i$idx";
-			if (isset($entities[$key]))
-				$this->appendHtmlTag($parent, 'a', $entities[$key]['attr'], $entities[$key]['text']);
-			else {
+			if (isset($entities[$key])) {
+				$e = $entities[$key];
+				$node = $doc->createElementNS($xhtml, 'a');
+				$node->setAttribute('href', $e[0]);
+				$e[2] && $node->setAttribute('title', $e[2]);
+				$node->appendChild($doc->createTextNode($e[1]));
+			} else {
 				$txt = iconv_substr($text, $idx, $indices[$i+1] - $idx, 'UTF-8');
-				$parent->appendChild($parent->ownerDocument->createTextNode($txt));
+				$node = $doc->createTextNode($txt);
 			}
+			$parent->appendChild($node);
 		}
 	}
 
@@ -350,10 +340,6 @@ class TwitterFeed extends Cachable {
 		$t = $this->xmlTag($parent->ownerDocument, 'atom', $tagName, $attr, $text);
 		return $this->appendTag($parent, $t);
 	}
-	private function appendHtmlTag($parent, $tagName, $attr=null, $text=null) {
-		$t = $this->xmlTag($parent->ownerDocument, 'xhtml', $tagName, $attr, $text);
-		return $this->appendTag($parent, $t);
-	}
 	private function appendTwitterTag($parent, $tagName, $text) {
 		$t = $this->xmlTag($parent->ownerDocument, 'twitter', "twitter:$tagName", null, $text);
 		return $this->appendTag($parent, $t);
@@ -366,11 +352,5 @@ class TwitterFeed extends Cachable {
 		$parent->appendChild($tag);
 		$parent->appendChild($parent->ownerDocument->createTextNode($parent_indent));
 		return $tag;
-	}
-	private function entityLink($href, $text, $title=null, $class=null) {
-		$e = array('attr'=>array('href'=>$href, 'rel'=>'nofollow'), 'text'=>$text);
-		if ($title) $e['attr']['title'] = $title;
-		if ($class) $e['attr']['class'] = $class;
-		return $e;
 	}
 };
