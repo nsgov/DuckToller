@@ -45,7 +45,7 @@
 	<a href="{atom:uri}" class="tweeter">
 		<img src="{twitter:profile_image_url}" alt="" class="tweeter-avatar" />
 		<span class="tweeter-name"><xsl:value-of select="atom:name"/></span>
-		<span class="tweeter-screenname"><xsl:value-of select="twitter:screen_name"/></span>
+		<span class="tweeter-screenname">@<xsl:value-of select="twitter:screen_name"/></span>
 	</a>
 </xsl:template>
 
