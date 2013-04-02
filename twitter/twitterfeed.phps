@@ -158,7 +158,6 @@ class TwitterFeed extends Cachable {
 		$feed = $this->atom->documentElement;
 		while ($feed->lastChild)
 			$feed->removeChild($feed->lastChild);
-		$feed->appendChild($this->atom->createTextNode("\n"));
 		$this->appendAtomTag($feed, 'id', null, $id);
 		$this->appendAtomTag($feed, 'title', null, $title);
 		if (($this->feedmode[2]=='screen_name') && isset($tweets[0])) {
@@ -193,6 +192,7 @@ class TwitterFeed extends Cachable {
 	}
 
 	protected function generateEntry($tweet) {
+		$this->atom->documentElement->appendChild($this->atom->createTextNode("\n"));
 		$entry = $this->appendAtomTag($this->atom->documentElement, 'entry');
 		$retweeted_by = '';
 		$id = $tweet->id_str;
@@ -333,20 +333,23 @@ class TwitterFeed extends Cachable {
 	}
 	private function appendAtomTag($parent, $tagName, $attr=null, $text=null) {
 		$t = $this->xmlTag($parent->ownerDocument, 'atom', $tagName, $attr, $text);
-		return $this->appendTag($parent, $t, "\t");
+		return $this->appendTag($parent, $t);
 	}
 	private function appendHtmlTag($parent, $tagName, $attr=null, $text=null) {
 		$t = $this->xmlTag($parent->ownerDocument, 'xhtml', $tagName, $attr, $text);
-		return $this->appendTag($parent, $t, "\t\t");
+		return $this->appendTag($parent, $t);
 	}
 	private function appendTwitterTag($parent, $tagName, $text) {
 		$t = $this->xmlTag($parent->ownerDocument, 'twitter', "twitter:$tagName", null, $text);
-		return $this->appendTag($parent, $t, "\t");
+		return $this->appendTag($parent, $t);
 	}
-	private function appendTag($parent, $tag, $indent) {
-		$parent->appendChild($parent->ownerDocument->createTextNode($indent));
+	private function appendTag($parent, $tag) {
+		$gp1 = $parent->parentNode ? $parent->parentNode->firstChild : null;
+		$parent_indent = ($gp1 && ($gp1->nodeType==3)) ? $gp1->textContent : "\n";
+		$tag_indent = $parent->firstChild ? "\t" : "$parent_indent\t";
+		$parent->appendChild($parent->ownerDocument->createTextNode($tag_indent));
 		$parent->appendChild($tag);
-		$parent->appendChild($parent->ownerDocument->createTextNode("\n"));
+		$parent->appendChild($parent->ownerDocument->createTextNode($parent_indent));
 		return $tag;
 	}
 	private function entityLink($href, $text, $title=null, $class=null) {
