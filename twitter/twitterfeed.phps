@@ -229,10 +229,6 @@ class TwitterFeed extends Cachable {
 			$this->appendAtomTag($entry, 'link', $retweet);
 		$this->appendAtomTag($entry, 'published', null, $published->format(DateTime::ATOM));
 		$this->appendAtomTag($entry, 'updated', null, $updated->format(DateTime::ATOM));
-		$this->appendHtmlTag($entry, 'time', array(
-			'datetime' => $updated->format(DateTime::W3C),
-			'title' => $updated->format('D M jS Y \@ g:ia T')),
-			$updated->format('M d'));
 		if ($tweet->in_reply_to_status_id) {
 			$ref_url = 'https://twitter.com/'.$tweet->in_reply_to_screen_name.'/status/'.$tweet->in_reply_to_status_id_str;
 			$this->appendTag($entry, $this->xmlTag($this->atom, 'thr', 'in-reply-to',

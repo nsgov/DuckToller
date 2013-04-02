@@ -27,7 +27,7 @@
 	<xsl:variable name="id" select="substring-after(atom:id, '/status/')"/>
 	<xsl:variable name="intent" select="'https://twitter.com/intent/'"/>
 	<div class="tweet">
-		<a href="{atom:id}" class="tweet-time"><xsl:apply-templates select="." mode="time"/></a>
+		<a href="{atom:id}" class="tweet-time"><time datetime="{atom:updated}"><xsl:value-of select="substring(atom:updated, 1, 10)"/></time></a>
 		<xsl:apply-templates select="atom:author"/>
 		<blockquote class="tweet-text" cite="{atom:id}"><xsl:apply-templates select="atom:summary"/></blockquote>
 		<xsl:apply-templates select="atom:link[@rel='via']"/>
@@ -45,15 +45,6 @@
 		<span class="tweeter-name"><xsl:value-of select="atom:name"/></span>
 		<span class="tweeter-screenname">@<xsl:value-of select="twitter:screen_name"/></span>
 	</a>
-</xsl:template>
-
-<xsl:template match="atom:entry" mode="time">
-	<xsl:choose>
-		<xsl:when test="xhtml:time"><xsl:apply-templates select="xhtml:time"/></xsl:when>
-		<xsl:otherwise>
-			<time datetime="{atom:updated}"><xsl:value-of select="substring(atom:updated, 1, 10)"/></time>
-		</xsl:otherwise>
-	</xsl:choose>
 </xsl:template>
 
 <xsl:template match="atom:summary[@type='xhtml']">
