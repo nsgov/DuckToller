@@ -30,7 +30,7 @@
 		<a href="{atom:id}" class="tweet-time"><xsl:apply-templates select="." mode="time"/></a>
 		<xsl:apply-templates select="atom:author"/>
 		<blockquote class="tweet-text" cite="{atom:id}"><xsl:apply-templates select="atom:summary"/></blockquote>
-		$retweeted_by
+		<xsl:apply-templates select="atom:link[@rel='via']"/>
 		<div class="tweet-actions">
 		<a href="{$intent}tweet?in_reply_to={$id}" class="tweet-action tweet-reply"><i class="tweet-icon"> </i>Reply</a>
 		<a href="{$intent}retweet?tweet_id={$id}" class="tweet-action tweet-retweet"><i class="tweet-icon"> </i>Retweet</a>
@@ -58,6 +58,13 @@
 
 <xsl:template match="atom:summary[@type='xhtml']">
 	<xsl:apply-templates select="xhtml:div/node()"/>
+</xsl:template>
+
+<xsl:template match="atom:link[@rel='via']">
+	<p class="retweetedby">
+		<i class="tweet-icon"> </i>Retweeted by
+		<a href="{@href}"><xsl:value-of select="@title"/></a>
+	</p>
 </xsl:template>
 
 <xsl:template match="xhtml:*|@*">

@@ -202,14 +202,11 @@ class TwitterFeed extends Cachable {
 		$updated->setTimezone($this->toller->timezone);
 		$tweet_url = 'https://twitter.com/'.$tweet->user->screen_name."/status/$id";
 		if (isset($tweet->retweeted_status)) {
-			$retweeted_by = '<p class="retweetedby"><i class="tweet-icon"> </i> Retweeted by '.
-			                '<a href="https://twitter.com/'.
-							htmlspecialchars($tweet->user->screen_name).'">'.
-			                $tweet->user->name.'</a></p>';
+			$retweet = array('rel'=>'via', 'href'=>$tweet_url, 'title'=>$tweet->user->name);
 			$tweet = $tweet->retweeted_status;
 			$published = new DateTime($tweet->created_at);
 			$published->setTimezone($this->toller->timezone);
-		}
+		} else $retweet = FALSE;
 		$username = $tweet->user->screen_name;
 		$author_url = 'https://twitter.com/'.$username;
 		$this->appendAtomTag($entry, 'id', null, $tweet_url);
@@ -221,6 +218,8 @@ class TwitterFeed extends Cachable {
 		$this->appendTwitterTag($author, 'screen_name', $username);
 		$imgsrc = $this->createImgSrc($tweet->user->screen_name, $tweet->user->profile_image_url);
 		$this->appendTwitterTag($author, 'profile_image_url', $imgsrc);
+		if ($retweet)
+			$this->appendAtomTag($entry, 'link', $retweet);
 		$this->appendAtomTag($entry, 'published', null, $published->format(DateTime::ATOM));
 		$this->appendAtomTag($entry, 'updated', null, $updated->format(DateTime::ATOM));
 		$this->appendHtmlTag($entry, 'time', array(
