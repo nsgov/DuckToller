@@ -26,7 +26,8 @@ class TwitterFeed extends Cachable {
 	public static $XMLNS = array(
 		'atom'    => 'http://www.w3.org/2005/Atom',
 		'twitter' => 'http://api.twitter.com',
-		'xhtml'   => 'http://www.w3.org/1999/xhtml'
+		'xhtml'   => 'http://www.w3.org/1999/xhtml',
+		'thr'     => 'http://purl.org/syndication/thread/1.0'
 	);
 
 	private static $TWITTER_API_KEY_NAMES = array(
@@ -226,6 +227,12 @@ class TwitterFeed extends Cachable {
 			'datetime' => $updated->format(DateTime::W3C),
 			'title' => $updated->format('D M jS Y \@ g:ia T')),
 			$updated->format('M d'));
+		if ($tweet->in_reply_to_status_id) {
+			$ref_url = 'https://twitter.com/'.$tweet->in_reply_to_screen_name.'/status/'.$tweet->in_reply_to_status_id_str;
+			$this->appendTag($entry, $this->xmlTag($this->atom, 'thr', 'in-reply-to',
+				array('ref'=>$ref_url, 'type'=>'text/html', 'href'=>$ref_url),
+				'@' . $tweet->in_reply_to_screen_name));
+		}
 		$summary = $this->appendAtomTag($entry, 'summary', array('type'=>'xhtml'));
 		$summary = $this->appendHtmlTag($summary, 'div');
 		$entity = array();
