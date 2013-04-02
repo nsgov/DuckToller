@@ -147,7 +147,7 @@ class TwitterFeed extends Cachable {
 			$rel_alt = "https://twitter.com/" . $tweets[0]->user->screen_name;
 			break;
 		case 'hashtag':
-			$title = '#' . $this->params['q'];
+			$title = $this->params['q'];
 			$rel_alt = "https://twitter.com/search/%23" . $this->params['q'];
 			break;
 		default:
