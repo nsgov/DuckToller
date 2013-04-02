@@ -44,9 +44,11 @@
 
 .tweeter-avatar {
 	border: 1px solid #fff;
+	border-radius: 8px;
 	box-shadow: 0px 0px 6px #fff;
 	float: left;
 	margin-left: -58px;
+	overflow: hidden;
 	width: 48px;
 	height: 48px;
 	-webkit-transition: box-shadow 0.4s;
@@ -93,11 +95,12 @@
 
 .tweet-actions {
 	font-size: 12px;
+	text-align: right;
 }
 
 .tweet-action, .tweet-action:link {
 	color: #777;
-	padding: 2px 1em;
+	padding: 2px 1em 2px 0;
 }
 .tweet-action:focus, .tweet-action:hover {
 	color: #444;
