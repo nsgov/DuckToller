@@ -161,9 +161,16 @@ class TwitterFeed extends Cachable {
 		$feed->appendChild($this->atom->createTextNode("\n"));
 		$this->appendAtomTag($feed, 'id', null, $id);
 		$this->appendAtomTag($feed, 'title', null, $title);
-		$this->appendAtomTag($feed, 'link', array('rel'=>'self', 'type'=>'application/atom+xml', 'href'=>$id));
+		if (($this->feedmode[2]=='screen_name') && isset($tweets[0])) {
+			$u = $tweets[0]->user;
+			$desc = $u->description;
+			$desc && $this->appendAtomTag($feed, 'subtitle', null, $desc);
+			$avatar = $this->createImgSrc($u->screen_name, $u->profile_image_url);
+			$this->appendAtomTag($feed, 'icon', null, $avatar);
+		}
 		if ($rel_alt)
 			$this->appendAtomTag($feed, 'link', array('rel'=>'alternate', 'type'=>'text/html', 'href'=>$rel_alt));
+		$this->appendAtomTag($feed, 'link', array('rel'=>'self', 'type'=>'application/atom+xml', 'href'=>$id));
 		$this->appendAtomTag($feed, 'generator', array('uri'=>'http://github.com/nsgov/ducktoller',
 		                                               'version'=> DuckToller::$version),
 		                     'DuckToller/'.DuckToller::$version);
