@@ -197,7 +197,7 @@ class TwitterFeed extends Cachable {
 		$entry = $this->appendAtomTag($this->atom->documentElement, 'entry');
 		$retweeted_by = '';
 		$id = $tweet->id_str;
-		$title = $tweet->text;
+		$title = $text = html_entity_decode($tweet->text, ENT_QUOTES, 'UTF-8'); // twitter puts HTML entites in JSON text.
 		$updated = $published = new DateTime($tweet->created_at);
 		$updated->setTimezone($this->toller->timezone);
 		$tweet_url = 'https://twitter.com/'.$tweet->user->screen_name."/status/$id";
@@ -206,6 +206,7 @@ class TwitterFeed extends Cachable {
 			$tweet = $tweet->retweeted_status;
 			$published = new DateTime($tweet->created_at);
 			$published->setTimezone($this->toller->timezone);
+			$text = html_entity_decode($tweet->text, ENT_QUOTES, 'UTF-8'); // twitter puts HTML entites in JSON text.
 		} else $retweet = FALSE;
 		$username = $tweet->user->screen_name;
 		$author_url = 'https://twitter.com/'.$username;
@@ -258,7 +259,7 @@ class TwitterFeed extends Cachable {
 			$indices[] = $user->indices[1];
 			$entity["i$i"] = $this->entityLink('https://twitter.com/'.$user->screen_name, '@'.$user->screen_name, $user->name);
 		}
-		$this->linkEntities($summary, $tweet->text, $indices, $entity);
+		$this->linkEntities($summary, $text, $indices, $entity);
 		$intent = 'https://twitter.com/intent/';
 		$html =
 			'<div class="tweet">'.
