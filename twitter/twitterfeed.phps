@@ -24,6 +24,7 @@ class TwitterFeed extends Cachable {
 		'?' => array('search',  '/search/tweets',          'q',           '[[:print:]]{1,999}')
 	);
 	public static $XMLNS = array(
+		'xmlns'   => 'http://www.w3.org/2000/xmlns/',
 		'atom'    => 'http://www.w3.org/2005/Atom',
 		'twitter' => 'http://api.twitter.com',
 		'xhtml'   => 'http://www.w3.org/1999/xhtml',
@@ -114,10 +115,11 @@ class TwitterFeed extends Cachable {
 		else
 			$this->atom->loadXML('<?xml version="1.0" encoding="utf-8"?>'."\n<feed/>");
 		$feed = $this->atom->documentElement;
-		$xmlns_uri = 'http://www.w3.org/2000/xmlns/';
+		$xmlns_uri = self::$XMLNS['xmlns'];
+		$exclude = array('xmlns'=>1, 'xhtml'=>1);
 		foreach (self::$XMLNS as $prefix => $uri) {
 			$attr = 'xmlns' . ($prefix=='atom'?'':":$prefix");
-			if (!$feed->hasAttributeNS($xmlns_uri, $attr))
+			if (!isset($exclude[$prefix]) && !$feed->hasAttributeNS($xmlns_uri, $attr))
 				$feed->setAttributeNS($xmlns_uri, $attr, $uri);
 		}
 	}
