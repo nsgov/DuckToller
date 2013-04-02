@@ -112,8 +112,14 @@ class TwitterFeed extends Cachable {
 		if (file_exists($this->content_path_r))
 			$this->atom->load($this->content_path_r);
 		else
-			$this->atom->loadXML('<?xml version="1.0" encoding="utf-8"?>'.
-			                     '<feed xmlns="'.self::$XMLNS['atom'].'" xmlns:twitter="'.self::$XMLNS['twitter'].'"/>');
+			$this->atom->loadXML('<?xml version="1.0" encoding="utf-8"?>'."\n<feed/>");
+		$feed = $this->atom->documentElement;
+		$xmlns_uri = 'http://www.w3.org/2000/xmlns/';
+		foreach (self::$XMLNS as $prefix => $uri) {
+			$attr = 'xmlns' . ($prefix=='atom'?'':":$prefix");
+			if (!$feed->hasAttributeNS($xmlns_uri, $attr))
+				$feed->setAttributeNS($xmlns_uri, $attr, $uri);
+		}
 	}
 
 	protected function extractEntries() {
