@@ -8,7 +8,7 @@
 	exclude-result-prefixes="atom twitter xhtml">
 <xsl:output method="html" omit-xml-declaration="yes" indent="yes"/>
 
-<xsl:param name="max" select="1"/>
+<xsl:param name="max" select="20"/>
 
 <xsl:template match="atom:feed">
 	<xsl:variable name="twURL" select="atom:link[not(@rel) or @rel='alternate'][@type='text/html']"/>
