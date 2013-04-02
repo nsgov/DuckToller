@@ -53,4 +53,8 @@
 	<xsl:apply-templates select="xhtml:div/node()"/>
 </xsl:template>
 
+<xsl:template match="xhtml:*|@*">
+	<xsl:copy><xsl:apply-templates select="@*|node()"/></xsl:copy>
+</xsl:template>
+
 </xsl:transform>
