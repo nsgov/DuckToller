@@ -174,7 +174,7 @@ class TwitterFeed extends Cachable {
 			$desc = $u->description;
 			$desc && $this->appendAtomTag($feed, 'subtitle', null, $desc);
 			$avatar = $this->createImgSrc($u->screen_name, $u->profile_image_url);
-			$this->appendAtomTag($feed, 'icon', null, $avatar);
+			$this->appendAtomTag($feed, 'logo', null, $avatar);
 		}
 		if ($rel_alt)
 			$this->appendAtomTag($feed, 'link', array('rel'=>'alternate', 'type'=>'text/html', 'href'=>$rel_alt));
@@ -205,7 +205,6 @@ class TwitterFeed extends Cachable {
 		$entry = $this->appendAtomTag($this->atom->documentElement, 'entry');
 		$retweeted_by = '';
 		$id = $tweet->id_str;
-		$title = $text = html_entity_decode($tweet->text, ENT_QUOTES, 'UTF-8'); // twitter puts HTML entites in JSON text.
 		$updated = $published = new DateTime($tweet->created_at);
 		$updated->setTimezone($this->toller->timezone);
 		$tweet_url = 'https://twitter.com/'.$tweet->user->screen_name."/status/$id";
@@ -214,13 +213,13 @@ class TwitterFeed extends Cachable {
 			$tweet = $tweet->retweeted_status;
 			$published = new DateTime($tweet->created_at);
 			$published->setTimezone($this->toller->timezone);
-			$text = html_entity_decode($tweet->text, ENT_QUOTES, 'UTF-8'); // twitter puts HTML entites in JSON text.
 		} else $retweet = FALSE;
 		$username = $tweet->user->screen_name;
 		$author_url = 'https://twitter.com/'.$username;
+		$text = html_entity_decode($tweet->text, ENT_QUOTES, 'UTF-8'); // twitter puts HTML entites in JSON text.
 		$this->appendAtomTag($entry, 'id', null, $tweet_url);
 		$this->appendAtomTag($entry, 'link', array('rel'=>'alternate', 'type'=>'text/html', 'href'=>$tweet_url));
-		$this->appendAtomTag($entry, 'title', null, $title);
+		$this->appendAtomTag($entry, 'title', null, "$username: $text");
 		$author = $this->appendAtomTag($entry, 'author');
 		$this->appendAtomTag($author, 'name', null, $tweet->user->name);
 		$this->appendAtomTag($author, 'uri', null, $author_url);
