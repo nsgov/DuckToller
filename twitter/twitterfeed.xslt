@@ -2,7 +2,6 @@
 <xsl:transform version="1.0"
 	xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
 	xmlns:atom="http://www.w3.org/2005/Atom"
-	xmlns:twitter="http://api.twitter.com"
 	xmlns:xhtml="http://www.w3.org/1999/xhtml"
 	xmlns="http://www.w3.org/1999/xhtml"
 	exclude-result-prefixes="atom twitter xhtml">
@@ -40,15 +39,21 @@
 </xsl:template>
 
 <xsl:template match="atom:author">
+	<xsl:variable name="screen_name" select="substring-after(atom:uri, 'twitter.com/')"/>
+	<xsl:variable name="imgsrc" select="../atom:summary/xhtml:div/xhtml:img/@src"/>
 	<a href="{atom:uri}" class="tweeter">
-		<img src="{twitter:profile_image_url}" alt="" class="tweeter-avatar" />
+		<img src="{$imgsrc}" alt="" class="tweeter-avatar" />
 		<span class="tweeter-name"><xsl:value-of select="atom:name"/></span>
-		<span class="tweeter-screenname">@<xsl:value-of select="twitter:screen_name"/></span>
+		<span class="tweeter-screenname">@<xsl:value-of select="$screen_name"/></span>
 	</a>
 </xsl:template>
 
-<xsl:template match="atom:summary[@type='xhtml']">
-	<xsl:apply-templates select="xhtml:div/node()"/>
+<xsl:template match="atom:summary[xhtml:div/xhtml:q]">
+	<xsl:apply-templates select="xhtml:div/xhtml:q/node()"/>
+</xsl:template>
+
+<xsl:template match="atom:summary">
+	<xsl:value-of select="text()"/>
 </xsl:template>
 
 <xsl:template match="atom:link[@rel='via']">

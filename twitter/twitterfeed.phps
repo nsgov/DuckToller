@@ -24,11 +24,10 @@ class TwitterFeed extends Cachable {
 		'?' => array('search',  '/search/tweets',          'q',           '[[:print:]]{1,999}')
 	);
 	public static $XMLNS = array(
-		'xmlns'   => 'http://www.w3.org/2000/xmlns/',
-		'atom'    => 'http://www.w3.org/2005/Atom',
-		'twitter' => 'http://api.twitter.com',
-		'xhtml'   => 'http://www.w3.org/1999/xhtml',
-		'thr'     => 'http://purl.org/syndication/thread/1.0'
+		'xmlns' => 'http://www.w3.org/2000/xmlns/',
+		'atom'  => 'http://www.w3.org/2005/Atom',
+		'xhtml' => 'http://www.w3.org/1999/xhtml',
+		'thr'   => 'http://purl.org/syndication/thread/1.0'
 	);
 
 	private static $TWITTER_API_KEY_NAMES = array(
@@ -223,22 +222,19 @@ class TwitterFeed extends Cachable {
 		$author = $this->appendAtomTag($entry, 'author');
 		$this->appendAtomTag($author, 'name', null, $tweet->user->name);
 		$this->appendAtomTag($author, 'uri', null, $author_url);
-		$this->appendTwitterTag($author, 'screen_name', $username);
 		$imgsrc = $this->createImgSrc($tweet->user->screen_name, $tweet->user->profile_image_url);
-		$this->appendTwitterTag($author, 'profile_image_url', $imgsrc);
 		if ($retweet)
 			$this->appendAtomTag($entry, 'link', $retweet);
 		$this->appendAtomTag($entry, 'published', null, $published->format(DateTime::ATOM));
 		$this->appendAtomTag($entry, 'updated', null, $updated->format(DateTime::ATOM));
 		if ($tweet->in_reply_to_status_id) {
 			$ref_url = 'https://twitter.com/'.$tweet->in_reply_to_screen_name.'/status/'.$tweet->in_reply_to_status_id_str;
-			$this->appendTag($entry, $this->xmlTag($this->atom, 'thr', 'in-reply-to',
+			$this->appendTag($entry, 'thr:in-reply-to',
 				array('ref'=>$ref_url, 'type'=>'text/html', 'href'=>$ref_url),
-				'@' . $tweet->in_reply_to_screen_name));
+				'@' . $tweet->in_reply_to_screen_name);
 		}
 		$summary = $this->appendAtomTag($entry, 'summary', array('type'=>'xhtml'));
-		$summary_div = $summary->ownerDocument->createElementNS(self::$XMLNS['xhtml'], 'div');
-		$summary = $summary->appendChild($summary_div);
+		$summary = $this->appendTag($summary, 'xhtml:div');
 		$entity = array();
 		$indices = array();
 		foreach ($tweet->entities->hashtags as $hashtag) {
@@ -263,10 +259,9 @@ class TwitterFeed extends Cachable {
 			$indices[] = $user->indices[1];
 			$entity["i$i"] = array('https://twitter.com/'.$user->screen_name, '@'.$user->screen_name, $user->name);
 		}
-		$summary_div->appendChild($this->atom->createTextNode("\n\t\t\t"));
-		$this->linkEntities($summary_div, $text, $indices, $entity);
-		$summary_div->appendChild($this->atom->createTextNode("\n\t\t"));
-		$intent = 'https://twitter.com/intent/';
+		$this->appendTag($summary, 'xhtml:img', array('src'=>$imgsrc, 'align'=>'top'));
+		$q = $this->appendTag($summary, 'xhtml:q');
+		$this->linkEntities($q, $text, $indices, $entity);
 		return $entry;
 	}
 
@@ -336,20 +331,23 @@ class TwitterFeed extends Cachable {
 		return $tag;
 	}
 	private function appendAtomTag($parent, $tagName, $attr=null, $text=null) {
-		$t = $this->xmlTag($parent->ownerDocument, 'atom', $tagName, $attr, $text);
-		return $this->appendTag($parent, $t);
+		return $this->appendNode($parent,
+			$this->xmlTag($parent->ownerDocument, 'atom', $tagName, $attr, $text));
 	}
-	private function appendTwitterTag($parent, $tagName, $text) {
-		$t = $this->xmlTag($parent->ownerDocument, 'twitter', "twitter:$tagName", null, $text);
-		return $this->appendTag($parent, $t);
+	private function appendTag($parent, $qname, $attr=null, $text=null) {
+		$x = strpos($qname, ':', 1);
+		$ns = $x ? substr($qname, 0, $x) : 'atom';
+		$tagName = $x ? substr($qname, $x+1) : $qname;
+		return $this->appendNode($parent,
+			$this->xmlTag($parent->ownerDocument, $ns, $tagName, $attr, $text));
 	}
-	private function appendTag($parent, $tag) {
+	private function appendNode($parent, $node) {
 		$gp1 = $parent->parentNode ? $parent->parentNode->firstChild : null;
 		$parent_indent = ($gp1 && ($gp1->nodeType==3)) ? $gp1->textContent : "\n";
 		$tag_indent = $parent->firstChild ? "\t" : "$parent_indent\t";
 		$parent->appendChild($parent->ownerDocument->createTextNode($tag_indent));
-		$parent->appendChild($tag);
+		$parent->appendChild($node);
 		$parent->appendChild($parent->ownerDocument->createTextNode($parent_indent));
-		return $tag;
+		return $node;
 	}
 };
