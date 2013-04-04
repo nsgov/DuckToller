@@ -4,7 +4,7 @@
 	xmlns:atom="http://www.w3.org/2005/Atom"
 	xmlns:xhtml="http://www.w3.org/1999/xhtml"
 	xmlns="http://www.w3.org/1999/xhtml"
-	exclude-result-prefixes="atom twitter xhtml">
+	exclude-result-prefixes="atom xhtml">
 <xsl:output method="html" omit-xml-declaration="yes" indent="yes"/>
 
 <xsl:param name="max" select="20"/>
