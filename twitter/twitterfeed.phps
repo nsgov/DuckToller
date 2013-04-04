@@ -259,7 +259,19 @@ class TwitterFeed extends Cachable {
 			$indices[] = $user->indices[1];
 			$entity["i$i"] = array('https://twitter.com/'.$user->screen_name, '@'.$user->screen_name, $user->name);
 		}
-		$this->appendTag($summary, 'xhtml:img', array('src'=>$imgsrc, 'align'=>'top'));
+		if (isset($tweet->entities->media))
+			foreach ($tweet->entities->media as $media) {
+				$indices[] = $i = $media->indices[0];
+				$indices[] = $media->indices[1];
+				$entity["i$i"] = array($media->url, $media->display_url, $media->expanded_url);
+				if (strstr($media->media_url, '.jpg'))
+				$this->appendAtomTag($entry, 'link', array(
+					'rel'   => 'enclosure',
+					'type'  => 'image/jpeg',
+					'href'  => $media->media_url,
+					'title' => $media->type . ': ' . $media->display_url));
+			}
+		$this->appendTag($summary, 'xhtml:img', array('src'=>$imgsrc));
 		$q = $this->appendTag($summary, 'xhtml:q');
 		$this->linkEntities($q, $text, $indices, $entity);
 		return $entry;
