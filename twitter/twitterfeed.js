@@ -1,4 +1,8 @@
 window.DuckToller || (window.DuckToller={});
+DuckToller.Retriever = function(ducktype, receiver) {
+	this.ducktype = ducktype;
+	this.receiver = receiver;
+};
 DuckToller.TwitterFeed = {
 	baseURL: null,
 	feedURL: null,
@@ -6,6 +10,10 @@ DuckToller.TwitterFeed = {
 	run: function() {
 		var tags = document.querySelectorAll("*[data-twitterfeed]");
 		this.feedURL || (this.feedURL = this.getURL("?feed={feed}"));
+		this.queue = {
+			xslt: new DuckToller.Retriever(DuckToller.TwitterFeed.XSLT, this),
+			atom: new DuckToller.Retriever(DuckToller.TwitterFeed.Atom, this)
+		};
 		for (var i = tags.length, tag, m; (i--) && (tag = tags[i]);) {
 			var tf = tag.getAttribute("data-twitterfeed").split(';');
 			var params = {};
@@ -16,11 +24,14 @@ DuckToller.TwitterFeed = {
 			if ((m = tf[0].match(/^([@#])(\w+)$/))) {
 				var feedURL = this.feedURL.replace('{feed}', escape(m[0])),
 				    xsltURL = ('xslt' in params) ? params.xslt : this.getURL('twitterfeed.xslt');
-				params.xslt = this.queue("XSLT", xsltURL);
-				this.queue("Feed", feedURL).feedTag(tag, params);
+				params.xslt = this.queue.xslt.add(xsltURL);
+				this.queue.atom.add(feedURL).feedTag(tag, params);
 			}
 		}
-		this.retrieve("XSLT");
+		this.queue.xslt.retrieve();
+	},
+	received: function(q) {
+		(q==this.queue.xslt) ? this.queue.atom.retrieve() : this.fed();
 	},
 	getURL: function(basename) {
 		if (!this.baseURL) {
@@ -28,50 +39,13 @@ DuckToller.TwitterFeed = {
 			if (t) {
 				var src = t.getAttribute("src");
 				this.baseURL = src.substring(0, src.lastIndexOf('/')+1);
-			}
+			} else console.log("Grrr, Couldn't find script tag, " + document.body.lastChild.previousSibling.tagName);
 		}
 		return basename ? this.baseURL + basename : this.baseURL;
 	},
-	queue: function(id, url) { // queue an xml file to be loaded, if not already in queue
-		var q = this._q[id];
-		if (!(url in q.list)) {
-			q.list[url] = new DuckToller.TwitterFeed[id](url);
-			q.len++;
-			console.log(id + "queue += " + url);
-		}
-		return q.list[url];
-	},
-	_q: {Feed: {len: 0, list: {}}, XSLT: {len: 0, list: {}}},
-	retrieve: function(queueID) {
-		var q = this._q[queueID];
-		for (var url in q.list)
-			this.fetch(url, q);
-	},
-	fetch: function(url, q) { // load an xml file
-		var we = this, it = q.list[url], xdr = url.match(/^https?:/) && window.XDomainRequest,
-		    xr = new (xdr||window.XMLHttpRequest)();
-		xr.open("GET", url);
-		xr.onerror   = function() { we.failed(url, xr.statusText||(xr+" denied")); };
-		xr.onabort   = xr.onerror;
-		xr.ontimeout = function() { we.failed(url, "Connection timeout"); };
-		xr.onload    = function() { it.fetched(xr.responseXML||this.xdrXML(xr)); };
-		xr.onloadend = function() { delete q.list[url]; --q.len || we.retrieved(q); };
-		xr.send();
-	},
-	retrieved: function(q) {
-		if (q == this._q.XSLT)
-			this.retrieve("Feed");
-	},
-	xdrXML: function(xdr) {  // only expected from IE XDomainRequest
-		var x = new ActiveXObject("MSXML2.DOMDocument");
-		x.async = x.validateOnParse = false;
-		x.loadXML(xdr.responseText);
-		return x;
-	},
-	failed: function(url, msg) {
-		window.console && console.log(url + ": " + msg);
-	},
-	fed: function(feeder) {	// let garbage collector reclaim memory after feeds are done
+	fed: function() {	// let garbage collector reclaim memory after feeds are done
+		for (var q in this.queue) delete this.queue[q];
+		for (var i in this) delete this[i];
 		delete this.feeders[feeder.url];
 		if (--this.remaining < 1)
 			DuckToller.TwitterFeed = null;
@@ -80,11 +54,64 @@ DuckToller.TwitterFeed = {
 		this.url = url;
 		this.xp = null;
 	},
-	Feed: function(url) {
+	Atom: function(url) {
 		this.url = url; // For each feed URL in the page, there is...
 		this.tags = [];	// a list of tag(s) in the page calling this feed.
 	}
 };
+DuckToller.Retriever.prototype = {
+	len: 0,
+	list: {},
+	add: function(url) {
+		if (!(url in this.list)) {
+			this.list[url] = new this.ducktype(url);
+			this.len++;
+			console.log("queued " + url);
+		}
+		return this.list[url];
+	},
+	retrieve: function() {
+		console.log("Retrieving " + this.len + ' item(s) in ' + this.id);
+		for (var url in this.list)
+			this.fetch(url);
+	},
+	fetch: function(url) {
+		var q = this, xdr = 0 && url.indexOf(':') && window.XDomainRequest,
+		    xr = new (xdr||window.XMLHttpRequest)();
+		xr.open("GET", url);
+		console.log("onload: " + typeof(xr.onload) + ", onreadystatechange: " + typeof(xr.onreadystatechange));
+		var it = {
+			failed: function() {
+				window.console && console.log(url+": "+(xr.statusText||xr+"failed"));
+				it.finish();
+			},
+			fetched: function() {
+				q.list[url].fetched(xr.responseXML||this.xdrXML(xr));
+				it.finish();
+			},
+			finish: function() {
+				xr = it = null;
+				delete q.list[url];
+				--q.len || this.receiver && this.receiver.retrieved(q);
+			}
+		};
+		if (typeof(xr.onload)!='undefined') {
+			xr.onabort = xr.onerror = xr.ontimeout = it.failed;
+			xr.onload = it.fetched;
+		} else xr.onreadystatechange = function() {
+			if (xr.readyState==4)
+				(xr.status==200) ? it.fetched() : it.failed();
+		}
+		xr.send();
+		console.log("Fetching " + url + " with " + xr);
+	},
+	xdrXML: function(xdr) {  // only expected from IE XDomainRequest
+		var x = new ActiveXObject("MSXML2.DOMDocument");
+		x.async = x.validateOnParse = false;
+		x.loadXML(xdr.responseText);
+		return x;
+	},
+}
 DuckToller.TwitterFeed.XSLT.prototype = {
 	fetched: function(xsl) {
 		if (window.XSLTProcessor) {
@@ -118,7 +145,7 @@ DuckToller.TwitterFeed.XSLT.prototype = {
 		tag.element.innerHTML = this.xp.output;
 	}
 };
-DuckToller.TwitterFeed.Feed.prototype = {
+DuckToller.TwitterFeed.Atom.prototype = {
 	feedTag: function(tag, params) {
 		if (!params.max) params.max = 0;
 		this.tags.push({element: tag, params: params});
@@ -137,10 +164,21 @@ DuckToller.TwitterFeed.Feed.prototype = {
 					h %= 12;
 					timetag.innerHTML = (h?h:12) + ':' + m + ampm;
 				}
+				timetag.setAttribute('title', d.toString());
 			}
 			t.element.setAttribute("aria-busy", "false");
 		}
-	},
+	}
 };
-
+if (!window.console) {
+	console = {
+		init: function() {
+			this.t = document.body.appendChild(document.createElement('textarea'));
+			this.t.setAttribute('style', 'width: 100%; height: 10em;');
+			console.log((new Date()).toString());
+		},
+		log: function(msg) {this.t.value += msg + "\n";}
+	};
+	console.init();
+}
 DuckToller.TwitterFeed.canRun ? DuckToller.TwitterFeed.run() : DuckToller.TwitterFeed = null;
