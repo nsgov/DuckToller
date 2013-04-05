@@ -239,10 +239,7 @@ class TwitterFeed extends Cachable {
 		$indices = array();
 		foreach ($tweet->entities->hashtags as $hashtag) {
 			$term = '#'.$hashtag->text;
-			$this->appendAtomTag($entry, 'category', array(
-				'term'   => $term,
-				'scheme' => 'https://twitter.com/'
-			));
+			$this->appendAtomTag($entry, 'category', array('term' => $term));
 			$indices[] = $i = $hashtag->indices[0];
 			$indices[] = $hashtag->indices[1];
 			$entity["i$i"] = array('https://twitter.com/search/%23'.$hashtag->text, $term, '');
@@ -264,12 +261,15 @@ class TwitterFeed extends Cachable {
 				$indices[] = $i = $media->indices[0];
 				$indices[] = $media->indices[1];
 				$entity["i$i"] = array($media->url, $media->display_url, $media->expanded_url);
-				if (strstr($media->media_url, '.jpg'))
-				$this->appendAtomTag($entry, 'link', array(
-					'rel'   => 'enclosure',
-					'type'  => 'image/jpeg',
-					'href'  => $media->media_url,
-					'title' => $media->type . ': ' . $media->display_url));
+				$mimetype = array('jpg'=>'image/jpeg', 'jpeg'=>'image/jpeg', 'png'=>'image/png', 'gif'=>'image/gif');
+				$ext = substr($media->media_url, strrpos($media->media_url, '.')+1);
+				$this->log->info("media ext: [$ext]");
+				if (isset($mimetype[$ext]))
+					$this->appendAtomTag($entry, 'link', array(
+						'rel'   => 'enclosure',
+						'type'  => $mimetype[$ext],
+						'href'  => $media->media_url,
+						'title' => $media->type . ': ' . $media->display_url));
 			}
 		$this->appendTag($summary, 'xhtml:img', array('src'=>$imgsrc));
 		$q = $this->appendTag($summary, 'xhtml:q');
