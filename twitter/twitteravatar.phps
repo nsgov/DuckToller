@@ -12,7 +12,7 @@ class TwitterAvatar extends HttpCachable {
 	function __construct(DuckToller $toller, $username) {
 		parent::__construct($toller, null, $username, '.img');
 		$this->config = $this->config->section('TwitterAvatar');
-		$this->static_url = FALSE;
+		$this->loglabel = "TwitterAvatar[$username]";
 		$this->url_file = $this->config->getCachePath(".$username.url");
 		if (!file_exists($this->url_file))
 			throw new Exception('Twitter Avatar URL not initialized.'.$url_file);
