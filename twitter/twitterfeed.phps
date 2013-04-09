@@ -45,14 +45,48 @@ class TwitterFeed extends Cachable {
 		$basename = $this->feedmode[0].'-'.(preg_match('/^\w{1,31}$/', $feedparam) ?
 		                                    strtolower($feedparam) : md5($feedparam));
 		parent::__construct($toller, $basename, '.atom', '.json');
-		$this->config = $this->config->section('Twitter')->section('TwitterFeed');
 		$this->loglabel = "TwitterFeed[$feedstring]";
+		$this->config = $this->config->section('Twitter')->section('TwitterFeed');
+		if (($feed_list = $this->config->getPath("feed_lists"))) {
+			if (!is_readable($feed_list))
+				throw new Exception('feed_list file is not readable');
+			elseif (($listID = $this->getFeedListID($feedstring, $feed_list))) {
+				$this->config = $this->config->section("TwitterFeed:$listID");
+				#print_r($this->config);
+			}
+			else
+				throw new Exception('Feed not accepted');
+		} else
+			throw new Exception('feed_lists is not configured');
 		if ($feedchar=='#')
 			$feedparam = '#'.$feedparam;
 		$this->params = array($this->feedmode[2] => $feedparam);
 		$this->atom = new DOMDocument();
 		$this->mimetype = 'application/atom+xml';
 		$this->charset  = 'utf-8';
+	}
+
+	private function getFeedListID($feedID, $listfile) {
+		$listID = $currentList = '';
+		foreach (file($listfile) as $line) {
+			if (($comment = strpos($line, ';')!==FALSE))
+				$line = substr($line, 0, $comment);
+			$line = trim($line);
+			if (!$line)
+				continue;
+			if (substr($line, -1)==':')
+				$currentList = substr($line, 0, -1);
+			elseif ($line{0}=='/') {
+				if (preg_match($line, $feedID)) {
+					$listID = $currentList;
+					break;
+				}
+			} elseif (strcasecmp($feedID, $line)==0) {
+				$listID = $currentList;
+				break;
+			}
+		}
+		return $listID;
 	}
 
 	private function getTwitterAPIKeys() {
