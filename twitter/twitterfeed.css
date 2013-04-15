@@ -62,15 +62,14 @@
 
 .tweeter-name {
 	color: #555;
+	display: block;
 	font-size: 14px;
 	font-weight: bold;
-	margin-right: 1em;
 }
 
 .tweeter-screenname {
 	color: #777;
 	font-style: italic;
-	margin-right: 1em;
 }
 
 .tweet-time {
