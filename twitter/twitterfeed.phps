@@ -14,7 +14,7 @@
  * The cache is saved as an Atom feed.
  */
 class TwitterFeed extends Cachable {
-	protected $atom, $entries, $feedmode, $params;
+	protected $atom, $firstEntry, $feedmode, $params;
 	protected $avatar_base_url, $avatar_path, $avatar_urls;
 	protected static $modes = array(
 		 //           mode       API endpoint               primary param  valid param
@@ -62,6 +62,7 @@ class TwitterFeed extends Cachable {
 			$feedparam = '#'.$feedparam;
 		$this->params = array($this->feedmode[2] => $feedparam);
 		$this->atom = new DOMDocument();
+		$this->firstEntry = null;
 		$this->mimetype = 'application/atom+xml';
 		$this->charset  = 'utf-8';
 	}
@@ -105,7 +106,6 @@ class TwitterFeed extends Cachable {
 	protected function fetch($cache, $jsonfile) {
 		require_once(DUCKTOLLER_PATH.'lib/twitteroauth/twitteroauth.php');
 		$this->loadFromCache();
-		$this->extractEntries();
 		$since_id = $this->getMaxId();
 		if ($since_id)
 			$this->params['since_id'] = $since_id;
@@ -143,10 +143,14 @@ class TwitterFeed extends Cachable {
 	}
 
 	protected function loadFromCache() {
-		if (file_exists($this->content_path_r))
+		if (file_exists($this->content_path_r)) {
 			$this->atom->load($this->content_path_r);
-		else
+			$entries = $this->atom->getElementsByTagNameNS(self::$XMLNS['atom'], 'entry');
+			$this->firstEntry = $entries->length ? $entries->item(0) : null;
+		} else {
 			$this->atom->loadXML('<?xml version="1.0" encoding="utf-8"?>'."\n<feed/>");
+			$this->firstEntry = null;
+		}
 		$feed = $this->atom->documentElement;
 		$xmlns_uri = self::$XMLNS['xmlns'];
 		$exclude = array('xmlns'=>1, 'xhtml'=>1);
@@ -157,24 +161,13 @@ class TwitterFeed extends Cachable {
 		}
 	}
 
-	protected function extractEntries() {
-		$this->entries = array();
-		if (!$this->atom)
-			return;
-		$feed = $this->atom->documentElement;
-		$tags = $feed->getElementsByTagNameNS(self::$XMLNS['atom'], 'entry');
-		$this->log->debug('Found ' . $tags->length . ' tweets in cache');
-		for ($i = $tags->length; $i--;)
-			$this->entries[] = $feed->removeChild($tags->item(0));
-	}
-
 	protected function getMaxId() {
 		$max = 0;
-		if (count($this->entries) > 0) {
-			$tags = $this->entries[0]->getElementsByTagNameNS(self::$XMLNS['atom'], 'id');
+		if ($this->firstEntry) {
+			$tags = $this->firstEntry->getElementsByTagNameNS(self::$XMLNS['atom'], 'id');
 			if ($tags && $tags->length) {
 				$x = explode('/', $tags->item(0)->textContent);
-				$max = trim($x[count($x)-1]);
+				$max = trim($x[count($x)-1])-0;
 			}
 		}
 		return $max;
@@ -198,8 +191,13 @@ class TwitterFeed extends Cachable {
 		}
 		$title = htmlspecialchars($title);
 		$feed = $this->atom->documentElement;
-		while ($feed->lastChild)
-			$feed->removeChild($feed->lastChild);
+		for ($node=$feed->firstChild; ($node)&&($node!==$this->firstEntry); $node=$nextnode) {
+			$nextnode = $node->nextSibling;
+			$feed->removeChild($node);	// remove everything old until the first entry
+		}
+		for ($entries = array(); $node; $node = $node->nextSibling)
+			if (($node->nodeType==1)&&($node->namespaceURI==self::$XMLNS['atom'])&&($node->localName=='entry'))
+					$entries[] = $node;
 		$this->appendAtomTag($feed, 'id', null, $id);
 		$this->appendAtomTag($feed, 'title', null, $title);
 		if (($this->feedmode[2]=='screen_name') && isset($tweets[0])) {
@@ -222,19 +220,20 @@ class TwitterFeed extends Cachable {
 			if ($new_count < $max_entries)
 				$new_count += $this->generateEntry($t) ? 1 : 0;
 			else break;
-		$keep_old = $max_entries - $new_count;
+		$old_count = count($entries);
+		$keep_old = min($max_entries - $new_count, $old_count);
 		$this->log->info("Saving $new_count new + $keep_old previous tweets");
-		if ($keep_old > 0)
-			foreach ($this->entries as $e)
-				if ($keep_old--)
-					$feed->appendChild($e);
-				else break;
+		if ($old_count > $keep_old)
+			for ($node = $entries[$keep_old]; $node; $node = $nextnode) {
+				$nextnode = $node->nextSibling;
+				$feed->removeChild($node);
+			}
 		$this->atom->formatOutput = TRUE;
 		return $this->atom->saveXML($feed);
 	}
 
 	protected function generateEntry($tweet) {
-		$this->atom->documentElement->appendChild($this->atom->createTextNode("\n"));
+		$this->atom->documentElement->insertBefore($this->atom->createTextNode("\n"), $this->firstEntry);
 		$entry = $this->appendAtomTag($this->atom->documentElement, 'entry');
 		$retweeted_by = '';
 		$id = $tweet->id_str;
@@ -378,23 +377,28 @@ class TwitterFeed extends Cachable {
 		return $tag;
 	}
 	private function appendAtomTag($parent, $tagName, $attr=null, $text=null) {
-		return $this->appendNode($parent,
-			$this->xmlTag($parent->ownerDocument, 'atom', $tagName, $attr, $text));
+		/*$this->log->debug('parent = '.$parent->localName . ', feed = ' . $this->atom->documentElement->localName);
+		$this->log->debug('parent == feed: ' . (($parent===$this->atom->documentElement)?"true":"false"));
+		$this->log->debug($parent->localName.".insertBefore($tagName, ".
+						  (($parent===$this->atom->documentElement)?$this->firstEntry->localName:"null").')');*/
+		return $this->insertNode($parent,
+			$this->xmlTag($parent->ownerDocument, 'atom', $tagName, $attr, $text),
+			($parent === $this->atom->documentElement) ? $this->firstEntry : null);
 	}
 	private function appendTag($parent, $qname, $attr=null, $text=null) {
 		$x = strpos($qname, ':', 1);
 		$ns = $x ? substr($qname, 0, $x) : 'atom';
 		$tagName = $x ? substr($qname, $x+1) : $qname;
-		return $this->appendNode($parent,
+		return $this->insertNode($parent,
 			$this->xmlTag($parent->ownerDocument, $ns, $tagName, $attr, $text));
 	}
-	private function appendNode($parent, $node) {
+	private function insertNode($parent, $node, $before=null) {
 		$gp1 = $parent->parentNode ? $parent->parentNode->firstChild : null;
 		$parent_indent = ($gp1 && ($gp1->nodeType==3)) ? $gp1->textContent : "\n";
 		$tag_indent = $parent->firstChild ? "\t" : "$parent_indent\t";
-		$parent->appendChild($parent->ownerDocument->createTextNode($tag_indent));
-		$parent->appendChild($node);
-		$parent->appendChild($parent->ownerDocument->createTextNode($parent_indent));
+		$node = $parent->insertBefore($node, $before);
+		$parent->insertBefore($parent->ownerDocument->createTextNode($tag_indent), $before);
+		$parent->insertBefore($parent->ownerDocument->createTextNode($parent_indent), $before);
 		return $node;
 	}
 };
