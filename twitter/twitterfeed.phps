@@ -249,10 +249,9 @@ class TwitterFeed extends Cachable {
 		} else $retweet = FALSE;
 		$username = $tweet->user->screen_name;
 		$author_url = 'https://twitter.com/'.$username;
-		$text = html_entity_decode($tweet->text, ENT_QUOTES, 'UTF-8'); // twitter puts HTML entites in JSON text.
 		$this->appendAtomTag($entry, 'id', null, $tweet_url);
 		$this->appendAtomTag($entry, 'link', array('rel'=>'alternate', 'type'=>'text/html', 'href'=>$tweet_url));
-		$this->appendAtomTag($entry, 'title', null, "$username: $text");
+		$this->appendAtomTag($entry, 'title', null, "$username: ".html_entity_decode($tweet->text, ENT_QUOTES, 'UTF-8')); // twitter puts HTML entites in JSON text
 		$author = $this->appendAtomTag($entry, 'author');
 		$this->appendAtomTag($author, 'name', null, $tweet->user->name);
 		$this->appendAtomTag($author, 'uri', null, $author_url);
@@ -307,7 +306,7 @@ class TwitterFeed extends Cachable {
 			}
 		$this->appendTag($summary, 'xhtml:img', array('src'=>$imgsrc));
 		$q = $this->appendTag($summary, 'xhtml:q');
-		$this->linkEntities($q, $text, $indices, $entity);
+		$this->linkEntities($q, $tweet->text, $indices, $entity);
 		return $entry;
 	}
 
@@ -331,9 +330,11 @@ class TwitterFeed extends Cachable {
 				$node = $doc->createElementNS($xhtml, 'a');
 				$node->setAttribute('href', $e[0]);
 				$e[2] && $node->setAttribute('title', $e[2]);
+				$txt =
 				$node->appendChild($doc->createTextNode($e[1]));
 			} else {
 				$txt = iconv_substr($text, $idx, $indices[$i+1] - $idx, 'UTF-8');
+				$txt = html_entity_decode($txt, ENT_QUOTES, 'UTF-8'); // twitter puts HTML entites in JSON text
 				$node = $doc->createTextNode($txt);
 			}
 			$parent->appendChild($node);
