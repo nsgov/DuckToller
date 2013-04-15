@@ -76,7 +76,7 @@ class DuckToller {
 				$this->log->debug('No origin host specified');
 		}
 		if ($allow)
-			header('Access-Control-Allow-Origin: ' . $allow);
+			header('Access-Control-Allow-Origin: *');// . $allow);
 		elseif ($origin) {
 			header('HTTP/1.1 403 Forbidden', true, 403);
 			throw new Exception('allow_origin: access denied.');
