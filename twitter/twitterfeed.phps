@@ -236,13 +236,12 @@ class TwitterFeed extends Cachable {
 	protected function generateEntry($tweet) {
 		$this->atom->documentElement->insertBefore($this->atom->createTextNode("\n"), $this->firstEntry);
 		$entry = $this->appendAtomTag($this->atom->documentElement, 'entry');
-		$retweeted_by = '';
 		$id = $tweet->id_str;
 		$updated = $published = new DateTime($tweet->created_at);
 		$updated->setTimezone($this->toller->timezone);
 		$tweet_url = 'https://twitter.com/'.$tweet->user->screen_name."/status/$id";
 		if (isset($tweet->retweeted_status)) {
-			$retweet = array('rel'=>'via', 'href'=>$tweet_url, 'title'=>$tweet->user->name);
+			$retweet = array('rel'=>'via', 'href'=>'https://twitter.com/'.$tweet->user->screen_name, 'title'=>$tweet->user->name);
 			$tweet = $tweet->retweeted_status;
 			$published = new DateTime($tweet->created_at);
 			$published->setTimezone($this->toller->timezone);

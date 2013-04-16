@@ -59,7 +59,7 @@
 <xsl:template match="atom:link[@rel='via']">
 	<p class="retweetedby">
 		<i class="tweet-icon"> </i>Retweeted by
-		<a href="{@href}"><xsl:value-of select="@title"/></a>
+		<a href="{@href}" title="@{substring-after(@href, 'twitter.com/')}"><xsl:value-of select="@title"/></a>
 	</p>
 </xsl:template>
 
