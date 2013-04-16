@@ -10,11 +10,11 @@
 <xsl:param name="max" select="20"/>
 
 <xsl:template match="atom:feed">
-	<xsl:variable name="twURL" select="atom:link[not(@rel) or @rel='alternate'][@type='text/html']"/>
+	<xsl:variable name="twURL" select="atom:link[not(@rel) or @rel='alternate'][@type='text/html']/@href"/>
 	<div class="twitterfeed">
 		<div class="twitterfeed-header">
 			<strong><xsl:choose>
-			<xsl:when test="$twURL"><a href="{$twURL}" class="twitterfeed-title"><xsl:value-of select="atom:title"/></a></xsl:when>
+			<xsl:when test="$twURL != ''"><a href="{$twURL}" class="twitterfeed-title"><xsl:value-of select="atom:title"/></a></xsl:when>
 			<xsl:otherwise><span class="twitterfeed-title"><xsl:value-of select="atom:title"/></span></xsl:otherwise>
 			</xsl:choose></strong>
 		</div>
