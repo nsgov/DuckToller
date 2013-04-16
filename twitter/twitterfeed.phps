@@ -221,7 +221,8 @@ class TwitterFeed extends Cachable {
 				$new_count += $this->generateEntry($t) ? 1 : 0;
 			else break;
 		$old_count = count($entries);
-		$keep_old = min($max_entries - $new_count, $old_count);
+		if (($keep_old = min($max_entries - $new_count, $old_count)) > 0)
+			$feed->insertBefore($this->atom->createTextNode("\n\t"), $this->firstEntry);
 		$this->log->info("Saving $new_count new + $keep_old previous tweets");
 		if ($old_count > $keep_old)
 			for ($node = $entries[$keep_old]; $node; $node = $nextnode) {
@@ -393,12 +394,18 @@ class TwitterFeed extends Cachable {
 			$this->xmlTag($parent->ownerDocument, $ns, $tagName, $attr, $text));
 	}
 	private function insertNode($parent, $node, $before=null) {
-		$gp1 = $parent->parentNode ? $parent->parentNode->firstChild : null;
-		$parent_indent = ($gp1 && ($gp1->nodeType==3)) ? $gp1->textContent : "\n";
-		$tag_indent = $parent->firstChild ? "\t" : "$parent_indent\t";
+		$doc = $parent->ownerDocument;
+		if ($parent===$doc->documentElement) {
+			$parent_indent = "\n";
+			$tag_indent = ($parent->firstChild===$this->firstEntry) ? "\n\t" : "\t";
+		} else {
+			$gp1 = $parent->parentNode->firstChild;
+			$parent_indent = ($gp1 && ($gp1->nodeType==3)) ? $gp1->textContent : "\n";
+			$tag_indent = $parent->firstChild ? "\t" : "$parent_indent\t";
+		}
 		$node = $parent->insertBefore($node, $before);
-		$parent->insertBefore($parent->ownerDocument->createTextNode($tag_indent), $before);
-		$parent->insertBefore($parent->ownerDocument->createTextNode($parent_indent), $before);
+		$parent->insertBefore($doc->createTextNode($tag_indent), $node);
+		$parent->insertBefore($doc->createTextNode($parent_indent), $before);
 		return $node;
 	}
 };
