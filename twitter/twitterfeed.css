@@ -103,6 +103,7 @@
 .tweet-action, .tweet-action:link {
 	color: #777;
 	padding: 2px 1em 2px 0;
+	white-space: nowrap;
 }
 .tweet-action:focus, .tweet-action:hover {
 	color: #444;
