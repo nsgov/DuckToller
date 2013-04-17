@@ -13,6 +13,9 @@
 	<xsl:variable name="twURL" select="atom:link[not(@rel) or @rel='alternate'][@type='text/html']/@href"/>
 	<div class="twitterfeed">
 		<div class="twitterfeed-header">
+			<xsl:if test="atom:subtitle">
+				<xsl:attribute name="title"><xsl:value-of select="atom:subtitle"/></xsl:attribute>
+			</xsl:if>
 			<strong><xsl:choose>
 			<xsl:when test="$twURL != ''"><a href="{$twURL}" class="twitterfeed-title"><xsl:value-of select="atom:title"/></a></xsl:when>
 			<xsl:otherwise><span class="twitterfeed-title"><xsl:value-of select="atom:title"/></span></xsl:otherwise>
