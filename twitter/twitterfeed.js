@@ -28,7 +28,7 @@ DuckToller.TwitterFeeds = {
 			scotty.fetch(i, this.received, {type:urls[i], tf:this});
 	},
 	modes: [
-		['@', /^(\w{1,15})$/, 1],
+		['@', /^@?(\w{1,15})$/, 1],
 		['#', /^search\/(\?=)?(%23|#)(\w){1,139}$/, 3]
 	],
 	getFeedParams: function(tag) {
