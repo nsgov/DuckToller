@@ -19,7 +19,7 @@ class Log {
 
 	protected function log($level, $msg) {
 		$this->entries->append(array($level, $this->label, $msg));
-		if (($this->logfile)&&($f = @fopen($this->logfile, 'a'))) {
+		if (($this->logfile)&&($level >= $this->level)&&($f = @fopen($this->logfile, 'a'))) {
 			$t = $this->label . ": $msg\n";
 			fwrite($f, $t, strlen($t));
 			fclose($f);
