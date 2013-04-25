@@ -88,15 +88,26 @@ DuckToller.TwitterFeeds = {
 		--this.index.toll || this.fed();
 	},
 	setTimes: function(tag) {
-		var now = new Date(), times, i, t, d, h, m, ampm;
+		var now = new Date(), days_ago, times, i, t, d, h, m, ampm, time, wday,
+			weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+			months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 		for (times=tag.querySelectorAll('time'), i=times.length; i-- && (t=times[i]);) {
 			d = new Date(t.getAttribute("datetime"));
-			if (now.toDateString()==d.toDateString()) { // today
-				h = d.getHours(), ampm = (h > 11) ? 'pm' : 'am';
-				m = d.getMinutes(); if (m < 10) m = '0'+m;
-				h %= 12;
-				t.innerHTML = (h?h:12) + ':' + m + ampm;
-			}
+			days_ago = Math.floor((now.getTime() - d.getTime()) / (1000*60*60*24));
+			if (days_ago < 5) {
+				h = d.getHours(), ampm = (h > 11) ? 'p.m.' : 'a.m.';
+				m = d.getMinutes();
+				switch (h*100+m) {
+					case 0: time = 'midnight'; break;
+					case 1200: time = 'noon'; break;
+					default:
+						h %= 12;
+						time =  (h?h:12) + ':' + (m<10?'0'+m:m) + ' ' + ampm;
+				}
+				wday = (now.toDateString()!=d.toDateString()) ? weekdays[d.getDay()] : '';
+				t.innerHTML = (wday ? wday + ', ' : '') + time;
+			} else if (days_ago < 300)
+				t.innerHTML = months[d.getMonth()] + ' ' + d.getDate();
 			t.setAttribute('title', d.toString());
 		}
 	},
