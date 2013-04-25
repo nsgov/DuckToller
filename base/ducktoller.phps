@@ -13,13 +13,12 @@ require_once(DUCKTOLLER_PATH.'base/cachable.phps');
 require_once(DUCKTOLLER_PATH.'base/log.phps');
 
 class DuckToller {
-	public static $version = "0.3";
+	public static $version = "0.4";
 	public $config, $log, $timezone;
 
 	function __construct($config_ini) {
 		$this->config = Config::load($config_ini, 'DuckToller');
 		$this->log = new Log($this, 'DuckToller');
-		$this->log->info(self::$version);
 		$timezone = $this->config->get('timezone', 'UTC');
 		date_default_timezone_set($timezone);
 		$this->timezone = new DateTimeZone($timezone);
@@ -47,7 +46,9 @@ class DuckToller {
 			echo "</pre>";
 		} else {
 			$duck->serveHeaders();
-			header('X-DuckToller-Log: '.implode(",\n ", $duck->getLogs(Log::$INFO)));
+			$log_lines = $duck->getLogs(Log::$INFO);
+			array_unshift($log_lines, 'v'.self::$version);
+			header('X-DuckToller-Log: ' . implode(",\n ", $log_lines));
 			if ($showcontent)
 				$duck->serveContent();
 		}
