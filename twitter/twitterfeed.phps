@@ -167,7 +167,7 @@ class TwitterFeed extends Cachable {
 			$tags = $this->firstEntry->getElementsByTagNameNS(self::$XMLNS['atom'], 'id');
 			if ($tags && $tags->length) {
 				$x = explode('/', $tags->item(0)->textContent);
-				$max = trim($x[count($x)-1])-0;
+				$max = trim($x[count($x)-1]);
 			}
 		}
 		return $max;
