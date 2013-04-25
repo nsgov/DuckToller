@@ -29,7 +29,7 @@ class Config {
 	function get($key, $fallback=null, $go_deep=TRUE) {
 		$val = $fallback;
 		foreach ($this->section_list as $sec) {
-			if (isset($this->data[$sec][$key])) {
+			if (isset($this->data[$sec]) && isset($this->data[$sec][$key])) {
 				$val = $this->data[$sec][$key];
 				break;
 			}
