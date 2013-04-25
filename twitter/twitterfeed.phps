@@ -344,7 +344,8 @@ class TwitterFeed extends Cachable {
 		$imgsrc = $url;
 		if ($this->avatar_base_url) {
 			$username = strtolower($username);
-			$this->avatar_urls[$username] = $url;
+			if (!isset($this->avatar_urls[$username]))
+				$this->avatar_urls[$username] = $url;
 			$imgsrc = str_replace('{screen_name}', $username, $this->avatar_base_url);
 		}
 		return $imgsrc;
@@ -357,13 +358,17 @@ class TwitterFeed extends Cachable {
 			$oldurl = '';
 			if (file_exists($url_file))
 				$oldurl = trim(@file_get_contents($url_file));
-			if ($url != $oldurl)
-				if (($f = @fopen($url_file, 'xb'))) {
+			if ($url != $oldurl) {
+				if (($f = @fopen($url_file_w, 'xb'))) {
 					$url = "$url\n";
 					fwrite($f, $url, strlen($url));
 					fclose($f);
-					@rename($url_file_w, $url_file) || @unlink($url_file_w);
-				}
+					if (!@rename($url_file_w, $url_file)) {
+						$this->log->warn("Unable to update $name avatar URL");
+						@unlink($url_file_w);
+					} else $this->log->info("Updated $name avatar URL");
+				} else $this->log->warn("Unable to write new $name avatar URL");
+			}
 		}
 	}
 
