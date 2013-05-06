@@ -119,8 +119,8 @@ DuckToller.TwitterFeeds = {
 };
 DuckToller.Retriever = {
 	fetch: function(url, receiver, params) {
-		var ieXDR = (url.indexOf('//') >= 0) && window.XDomainRequest, ieXML=this.ieXML,
-		    xr = new (ieXDR||XMLHttpRequest)();
+		var XHR = window.XDomainRequest && this.ieXDR(url) || XMLHttpRequest,
+			xr = new XHR(), ieXML = this.ieXML;
 		function fail() {
 			window.console && console.log(url+": "+(xr.statusText||xr+"failed"));
 			receiver.failed(url, params);
@@ -139,12 +139,17 @@ DuckToller.Retriever = {
 		}
 		xr.send();
 	},
+	ieXDR: function(url) { // return XDomainRequest if url is cross-domain
+		var h = url.match(/^(https?:)?\/\/([-a-z0-9.:])+(\/|$)/i),
+			x = h && (h[2].toLowerCase() != location.host.toLowerCase());
+		return x && XDomainRequest;
+	},
 	ieXML: function(xmlstr) {
 		var x = new ActiveXObject("MSXML2.FreeThreadedDOMDocument");
 		x.async = x.validateOnParse = false;
 		x.loadXML(xmlstr);
 		return x;
-	},
+	}
 }
 DuckToller.XSLT = function(dom) {
 	if (window.XSLTProcessor) {
