@@ -11,6 +11,9 @@ if (isset($_GET['feed'])) {
 } elseif (isset($_GET['avatar'])) {
 	require_once('./twitteravatar.phps');
 	$duck = new TwitterAvatar($ducktoller, $_GET['avatar']);
+} elseif (isset($_GET['xslt'])) {
+	require_once(DUCKTOLLER_PATH.'base/staticfile.phps');
+	$duck = new StaticFile($ducktoller, './', $_GET['xslt'].'.xslt', 'application/xslt+xml', 'utf-8');
 }
 
 if ($duck)

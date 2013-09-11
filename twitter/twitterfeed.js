@@ -6,16 +6,18 @@ window.DuckToller || (window.DuckToller={});
 DuckToller.TwitterFeeds = {
 	baseURL: '',
 	feedURL: '',
+	xsltURL: '',
 	index: {xslt:{}, feed:{}, tag:{}, toll:0},
 	canRun: document.querySelector && window.XMLHttpRequest && (window.XSLTProcessor || window.ActiveXObject),
 	run: function() {
 		var scotty = DuckToller.Retriever, idx = this.index, i, p, urls={},
 		    tags = document.querySelectorAll("*[data-twitterfeed]"),
-		    feedURL = this.feedURL || this.getURL("?feed={feed}");
+		    feedURL = this.feedURL || this.getURL("?feed={feed}"),
+			xsltURL = this.xsltURL || this.getURL("?xslt=twitterfeed");
 		for (i = tags.length; i--;)
 			if ((p = this.getFeedParams(tags[i]))) {
 				var feed = feedURL.replace('{feed}', escape(p.feed)),
-					xslt = (p.xslt) ? p.xslt : this.getURL('twitterfeed.xslt');
+					xslt = (p.xslt) ? p.xslt : this.getURL('?xslt=twitterfeed');
 				tags[i].setAttribute("aria-busy", "true");
 				idx.tag[i] = {feed:null, xslt:null, params:p, tag: tags[i]};
 				(feed in idx.feed) ? idx.feed[feed].push(i) : idx.feed[feed] = [i];
