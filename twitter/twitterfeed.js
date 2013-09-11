@@ -29,7 +29,8 @@ DuckToller.TwitterFeeds = {
 	},
 	modes: [
 		['@', /^@?(\w{1,15})$/, 1],
-		['#', /^search\/(\?=)?(%23|#)(\w){1,139}$/, 3]
+		['#', /^search\/(\?=)?(%23|#)(\w){1,139}$/, 3],
+		[':', /^(\w{1,15}\/\w{1,32})$/, 1]
 	],
 	getFeedParams: function(tag) {
 		var params={}, mode=0, match=0, a;

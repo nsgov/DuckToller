@@ -21,6 +21,7 @@ class TwitterFeed extends Cachable {
 		'@' => array('user',    '/statuses/user_timeline', 'screen_name', '\w{1,15}'),
 		'#' => array('hashtag', '/search/tweets',          'q',           '[A-Za-z]\w{0,30}'),
 		'*' => array('fav',     '/favorites/list',         'screen_name', '\w{1,15}'),
+		':' => array('list',    '/lists/statuses',          'slug',        '\w{1,15}\/\w{1,32}'),
 		'?' => array('search',  '/search/tweets',          'q',           '[[:print:]]{1,999}')
 	);
 	public static $XMLNS = array(
@@ -60,7 +61,11 @@ class TwitterFeed extends Cachable {
 			throw new Exception('feed_lists is not configured');
 		if ($feedchar=='#')
 			$feedparam = '#'.$feedparam;
-		$this->params = array($this->feedmode[2] => $feedparam);
+		if ($feedchar==':') {
+			$p = explode('/', $feedparam, 2);
+			$this->params = array('slug' => $p[1], 'owner_screen_name' => $p[0]);
+		} else
+			$this->params = array($this->feedmode[2] => $feedparam);
 		$this->atom = new DOMDocument();
 		$this->firstEntry = null;
 		$this->mimetype = 'application/atom+xml';
