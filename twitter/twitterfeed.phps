@@ -123,7 +123,7 @@ class TwitterFeed extends Cachable {
 		$hc = $toa->http_code;
 		#echo "<pre>"; print_r($toa->http_info); echo "\n"; print_r($tweets); echo "\n<pre>\n";
 		if ($hc != 200)
-			throw new Exception('Fail Whale! HTTP '.($hc||'timeout').' (after '.(time()-$start).'s)', $hc);
+			throw new Exception('Fail Whale! HTTP '.($hc?$hc:'timeout').' (after '.(time()-$start).'s)', $hc);
 		fwrite($jsonfile, $tweets, strlen($tweets));
 		$tweets = json_decode($tweets);
 		if (isset($tweets->statuses))
