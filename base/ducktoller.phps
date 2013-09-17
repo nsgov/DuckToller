@@ -13,7 +13,7 @@ require_once(DUCKTOLLER_PATH.'base/cachable.phps');
 require_once(DUCKTOLLER_PATH.'base/log.phps');
 
 class DuckToller {
-	public static $version = "0.4";
+	public static $version = "0.5";
 	public $config, $log, $timezone;
 
 	function __construct($config_ini) {
