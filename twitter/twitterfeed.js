@@ -8,7 +8,7 @@ DuckToller.TwitterFeeds = {
 	feedURL: '',
 	xsltURL: '',
 	index: {xslt:{}, feed:{}, tag:{}, toll:0},
-	canRun: document.querySelector && window.XMLHttpRequest && (window.XSLTProcessor || window.ActiveXObject),
+	canRun: document.querySelector && window.XMLHttpRequest && (window.XSLTProcessor || ("ActiveXObject" in window)),
 	run: function() {
 		var scotty = DuckToller.Retriever, idx = this.index, i, p, urls={},
 		    tags = document.querySelectorAll("*[data-twitterfeed]"),
@@ -129,7 +129,7 @@ DuckToller.Retriever = {
 			receiver.failed(url, params);
 		}
 		function fetched() { // umm… never trust responseXML from IE
-			var dom = window.ActiveXObject ? ieXML(xr.responseText) : xr.responseXML;
+			var dom = ("ActiveXObject" in window) ? ieXML(xr.responseText) : xr.responseXML;
 			dom ? receiver.fetched(url, dom, params) : fail();
 		}
 		xr.open("GET", url);
@@ -158,12 +158,15 @@ DuckToller.XSLT = function(dom) {
 	if (window.XSLTProcessor) {
 		this.xp = new XSLTProcessor();
 		this.xp.importStylesheet(dom);
-	} else if (window.ActiveXObject) {
+	} else try {
 		var x = new ActiveXObject("MSXML2.XSLTemplate");
 		x.stylesheet = dom;
 		this.xp = x.createProcessor();
 		this.transform = this.transformIE;
-	} else this.transform = function() {};
+	} catch(e) {
+		this.xp = null;
+		this.transform = function() {};
+	}
 }
 DuckToller.XSLT.prototype = {
 	transform: function(dom, params, tag) {
